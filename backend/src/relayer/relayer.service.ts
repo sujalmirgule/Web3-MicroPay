@@ -1,142 +1,244 @@
+import "dotenv/config";
 import { ethers } from "ethers";
-import { dbStore, DBSettlement } from "../db/memory-store";
-import { AppError } from "../errors/app-error";
+import { prisma } from "../db/prisma.client";
+import { getRedisClient } from "../redis/redis.client";
+import { ProductionRedisService } from "../redis/redis.production.service";
 import { logger } from "../utils/logger";
+import { MICRO_PAY_VAULT_ABI } from "@web3-micropay/shared";
 
-export interface RelayerConfig {
-  rpcUrl: string;
-  vaultAddress: string;
-  operatorPrivateKey?: string; // Used in local development
-}
+const GAS_BUMP_FACTOR      = 120n;  // +20% → multiply by 120, divide by 100
+const STUCK_TX_TIMEOUT_MS  = 300_000; // 5 minutes
+const RECONCILE_INTERVAL_MS = 60_000; // 1 minute
 
+/**
+ * Production Relayer Service.
+ * Processes queued settlement claims, constructs EIP-1559 txs,
+ * broadcasts, monitors, and gas-bumps stuck transactions.
+ *
+ * NOTE: In production, RELAYER_PRIVATE_KEY is replaced with AWS KMS signing.
+ * For local development, the key is loaded from the environment variable.
+ */
 export class RelayerService {
-  private provider: ethers.Provider;
-  private signer: ethers.Signer | null = null;
-  private vaultAddress: string;
+  private provider: ethers.JsonRpcProvider | null = null;
+  private wallet: ethers.Wallet | null = null;
+  private contract: ethers.Contract | null = null;
+  private redisService: ProductionRedisService;
+  private reconcileTimer: ReturnType<typeof setInterval> | null = null;
+  private operatorNonce = 0n;
 
-  constructor(config: RelayerConfig) {
-    this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
-    this.vaultAddress = config.vaultAddress;
-
-    if (config.operatorPrivateKey) {
-      this.signer = new ethers.Wallet(config.operatorPrivateKey, this.provider);
-      logger.info("RelayerService initialized with local operator wallet");
-    }
+  constructor() {
+    this.redisService = new ProductionRedisService(getRedisClient());
   }
 
-  public setSigner(signer: ethers.Signer) {
-    this.signer = signer;
+  private initProvider(): void {
+    if (this.provider) return;
+
+    const rpcUrl    = process.env.BLOCKCHAIN_RPC_URL;
+    const privKey   = process.env.RELAYER_PRIVATE_KEY;
+    const vaultAddr = process.env.MICROPAY_VAULT_ADDRESS;
+
+    if (!rpcUrl || !privKey || !vaultAddr) {
+      logger.warn("Relayer: missing RPC_URL, RELAYER_PRIVATE_KEY, or VAULT_ADDRESS — Relayer disabled");
+      return;
+    }
+
+    this.provider = new ethers.JsonRpcProvider(rpcUrl);
+    this.wallet   = new ethers.Wallet(privKey, this.provider);
+    this.contract = new ethers.Contract(vaultAddr, MICRO_PAY_VAULT_ABI, this.wallet);
+
+    logger.info({ relayerAddress: this.wallet.address }, "Relayer: provider initialized");
   }
 
   /**
-   * Enqueues and submits a cumulative settlement claim to the smart contract.
+   * Starts the periodic settlement reconciliation loop.
    */
-  public async submitSettlementClaim(
-    channelId: string,
-    voucherId?: string
-  ): Promise<{ settlementId: string; txHash: string; netPayout: string }> {
-    if (!this.signer) {
-      throw new AppError("ERR_RELAYER_LOW_BALANCE", 502, "Relayer signer not configured.");
-    }
+  public startReconciliationLoop(): void {
+    this.initProvider();
+    if (!this.provider) return;
 
-    const channel = dbStore.getChannel(channelId);
-    if (!channel) {
-      throw new AppError("ERR_CHANNEL_NOT_FOUND", 404, "Channel not found.");
-    }
-
-    // Fetch highest valid voucher
-    const voucher = voucherId
-      ? dbStore.vouchers.find((v) => v.id === voucherId)
-      : dbStore.getLatestVoucher(channelId);
-
-    if (!voucher) {
-      throw new AppError("ERR_VALIDATION_FAILED", 400, "No valid voucher found for settlement.");
-    }
-
-    const settlementId = `settle_${Date.now()}`;
-    const cumulativeWei = BigInt(voucher.cumulative_amount);
-    const settledWei = BigInt(channel.settledAmount);
-    const netPayout = (cumulativeWei - settledWei).toString();
-
-    logger.info(
-      { channelId, settlementId, cumulativeAmount: voucher.cumulative_amount, netPayout },
-      "Submitting settlement claim to on-chain vault"
+    logger.info("Relayer: reconciliation loop started");
+    this.reconcileTimer = setInterval(
+      () => void this.processQueuedSettlements(),
+      RECONCILE_INTERVAL_MS
     );
+  }
 
-    const vaultAbi = [
-      "function settleClaim(bytes32 channelId, uint256 cumulativeAmount, uint256 nonce, uint48 validUntil, bytes calldata signature) external",
-    ];
+  public stopReconciliationLoop(): void {
+    if (this.reconcileTimer) {
+      clearInterval(this.reconcileTimer);
+      this.reconcileTimer = null;
+    }
+  }
 
-    const vaultContract = new ethers.Contract(this.vaultAddress, vaultAbi, this.signer);
+  // ─── Settlement processing ────────────────────────────────────────────────
 
-    // EIP-1559 Fee Estimation
-    const feeData = await this.provider.getFeeData();
-    const maxFeePerGas = feeData.maxFeePerGas ? (feeData.maxFeePerGas * 120n) / 100n : undefined; // +20% safety
-    const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ?? undefined;
+  private async processQueuedSettlements(): Promise<void> {
+    if (!this.provider || !this.wallet || !this.contract) return;
 
-    let tx: ethers.ContractTransactionResponse;
+    // Acquire relayer nonce lock (serialise all dispatches)
+    const locked = await this.redisService.acquireLock("relayer:nonce:lock", 60);
+    if (!locked) return;
+
     try {
-      tx = await vaultContract.settleClaim(
-        channelId,
-        cumulativeWei,
-        voucher.nonce,
-        voucher.valid_until,
-        voucher.signature,
+      const pending = await prisma.settlement.findMany({
+        where: { status: "PENDING" },
+        include: { voucher: true, channel: true },
+        orderBy: { created_at: "asc" },
+        take: 5,
+      });
+
+      for (const settlement of pending) {
+        await this.executeSettlement(settlement);
+      }
+
+      // Check for stuck SUBMITTED transactions
+      await this.handleStuckTransactions();
+    } catch (err) {
+      logger.error({ err }, "Relayer: reconciliation error");
+    } finally {
+      await this.redisService.releaseLock("relayer:nonce:lock");
+    }
+  }
+
+  private async executeSettlement(settlement: {
+    id:        string;
+    channel_id: string;
+    voucher:   { nonce: bigint; cumulative_amount: { toString(): string }; signature: string };
+    channel:   { token_address: string };
+  }): Promise<void> {
+    if (!this.provider || !this.wallet || !this.contract) return;
+
+    logger.info({ settlementId: settlement.id, channelId: settlement.channel_id }, "Relayer: executing settlement");
+
+    try {
+      const feeData = await this.provider.getFeeData();
+      const maxFee       = feeData.maxFeePerGas ?? 10_000_000_000n;
+      const maxPriorityFee = feeData.maxPriorityFeePerGas ?? 1_000_000_000n;
+
+      // Sync operator nonce from chain on first run or after restart
+      if (this.operatorNonce === 0n) {
+        const onchainNonce = await this.provider.getTransactionCount(this.wallet.address);
+        this.operatorNonce = BigInt(onchainNonce);
+      }
+
+      const isEth  = settlement.channel.token_address === "0x" + "0".repeat(40);
+      const method = isEth ? "settleClaim" : "settleClaim"; // same interface, handles both
+
+      const tx = await this.contract[method](
+        settlement.channel_id,
+        BigInt(settlement.voucher.cumulative_amount.toString()),
+        BigInt(settlement.voucher.nonce.toString()),
+        settlement.voucher.signature,
         {
-          maxFeePerGas,
-          maxPriorityFeePerGas,
+          nonce:              Number(this.operatorNonce),
+          maxFeePerGas:       maxFee,
+          maxPriorityFeePerGas: maxPriorityFee,
+          type:               2,
         }
       );
-    } catch (err: any) {
-      logger.error({ error: err.message }, "Smart contract settleClaim transaction failed");
-      throw new AppError("ERR_TX_REVERTED", 500, `On-chain settlement reverted: ${err.message}`);
+
+      this.operatorNonce++;
+
+      logger.info({ settlementId: settlement.id, txHash: tx.hash, nonce: tx.nonce }, "Relayer: transaction broadcast");
+
+      await prisma.settlement.update({
+        where: { id: settlement.id },
+        data:  { status: "SUBMITTED", tx_hash: tx.hash },
+      });
+
+      // Monitor in background
+      void this.monitorTransaction(settlement.id, tx);
+    } catch (err) {
+      logger.error({ err, settlementId: settlement.id }, "Relayer: settlement execution failed");
+      await prisma.settlement.update({
+        where: { id: settlement.id },
+        data:  { retry_count: { increment: 1 } },
+      });
     }
-
-    const dbSettlement: DBSettlement = {
-      id: settlementId,
-      channel_id: channelId,
-      voucher_id: voucher.id,
-      claimed_amount: voucher.cumulative_amount,
-      net_payout: netPayout,
-      relayer_gas_fee: "0",
-      status: "PENDING",
-      tx_hash: tx.hash,
-      created_at: new Date(),
-    };
-
-    dbStore.settlements.set(settlementId, dbSettlement);
-
-    // Wait for mining
-    const receipt = await tx.wait();
-    if (!receipt || receipt.status !== 1) {
-      dbSettlement.status = "FAILED";
-      throw new AppError("ERR_TX_REVERTED", 500, "Settlement transaction reverted in block.");
-    }
-
-    dbSettlement.status = "CONFIRMED";
-    dbSettlement.block_number = receipt.blockNumber;
-    dbSettlement.relayer_gas_fee = (receipt.gasUsed * (receipt.gasPrice || 0n)).toString();
-
-    // Update channel settled amount in DB
-    channel.settledAmount = voucher.cumulative_amount;
-    dbStore.saveChannel(channel);
-
-    logger.info(
-      { settlementId, txHash: tx.hash, blockNumber: receipt.blockNumber },
-      "Settlement confirmed on-chain successfully"
-    );
-
-    return {
-      settlementId,
-      txHash: tx.hash,
-      netPayout,
-    };
   }
 
-  /**
-   * Implements +20% Gas Bumping for Replacement Transactions
-   */
-  public calculateBumperFee(currentFee: bigint): bigint {
-    return (currentFee * 120n) / 100n; // Exactly +20% as specified in Phase 2
+  private async monitorTransaction(
+    settlementId: string,
+    tx: ethers.TransactionResponse
+  ): Promise<void> {
+    if (!this.provider) return;
+
+    try {
+      const receipt = await tx.wait(6); // wait for 6 confirmations
+      if (!receipt) return;
+
+      await prisma.$transaction(async (dbTx) => {
+        await dbTx.settlement.update({
+          where: { id: settlementId },
+          data:  {
+            status:       "CONFIRMED",
+            finalized_at: new Date(),
+          },
+        });
+
+        await dbTx.settlementReceipt.create({
+          data: {
+            settlement_id:       settlementId,
+            tx_hash:             receipt.hash,
+            block_number:        BigInt(receipt.blockNumber),
+            gas_used:            receipt.gasUsed,
+            effective_gas_price: receipt.gasPrice ?? 0n,
+          },
+        });
+      });
+
+      logger.info({ settlementId, txHash: receipt.hash, block: receipt.blockNumber }, "Relayer: settlement confirmed");
+    } catch (err) {
+      logger.error({ err, settlementId }, "Relayer: transaction monitoring error");
+    }
+  }
+
+  // ─── Gas bump for stuck transactions ─────────────────────────────────────
+
+  private async handleStuckTransactions(): Promise<void> {
+    if (!this.provider || !this.wallet || !this.contract) return;
+
+    const stuckCutoff = new Date(Date.now() - STUCK_TX_TIMEOUT_MS);
+    const stuckSettlements = await prisma.settlement.findMany({
+      where: {
+        status:     "SUBMITTED",
+        created_at: { lt: stuckCutoff },
+      },
+      include: { voucher: true, channel: true },
+    });
+
+    for (const settlement of stuckSettlements) {
+      logger.warn({ settlementId: settlement.id }, "Relayer: replacing stuck transaction (+20% gas bump)");
+
+      const feeData = await this.provider.getFeeData();
+      const maxFee       = ((feeData.maxFeePerGas ?? 10_000_000_000n) * GAS_BUMP_FACTOR) / 100n;
+      const maxPriorityFee = ((feeData.maxPriorityFeePerGas ?? 1_000_000_000n) * GAS_BUMP_FACTOR) / 100n;
+
+      try {
+        const isEth = settlement.channel.token_address === "0x" + "0".repeat(40);
+        const tx = await this.contract["settleClaim"](
+          settlement.channel_id,
+          BigInt(settlement.voucher.cumulative_amount.toString()),
+          BigInt(settlement.voucher.nonce.toString()),
+          settlement.voucher.signature,
+          {
+            nonce:                Number(settlement.tx_hash ? 0 : this.operatorNonce), // use same nonce
+            maxFeePerGas:         maxFee,
+            maxPriorityFeePerGas: maxPriorityFee,
+            type:                 2,
+          }
+        );
+
+        await prisma.settlement.update({
+          where: { id: settlement.id },
+          data:  { tx_hash: tx.hash },
+        });
+
+        logger.info({ settlementId: settlement.id, newTxHash: tx.hash }, "Relayer: replacement transaction broadcast");
+        void this.monitorTransaction(settlement.id, tx);
+      } catch (err) {
+        logger.error({ err, settlementId: settlement.id }, "Relayer: gas bump failed");
+      }
+    }
   }
 }

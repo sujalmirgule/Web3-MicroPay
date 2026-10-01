@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  MERCHANT
+  ADMIN
+}
+
+enum ChannelStatus {
+  PENDING
+  OPEN
+  DISPUTED
+  CLOSED
+}
+
+enum SettlementStatus {
+  PENDING
+  SUBMITTED
+  MINED
+  CONFIRMED
+  FAILED
+}
+
+enum DeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  DEAD_LETTER
+}
+
+model User {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_address String   @unique @db.VarChar(42)
+  username       String?  @db.VarChar(100)
+  email          String?  @db.VarChar(255)
+  role           UserRole @default(USER)
+  created_at     DateTime @default(now()) @db.Timestamptz()
+  updated_at     DateTime @updatedAt @db.Timestamptz()
+  deleted_at     DateTime? @db.Timestamptz()
+
+  channels PaymentChannel[] @relation("PayerChannels")
+
+  @@index([wallet_address], name: "idx_users_wallet")
+  @@map("users")
+}
+
+model Merchant {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_address String   @unique @db.VarChar(42)
+  business_name  String   @db.VarChar(100)
+  api_key_hash   String   @unique @db.VarChar(64)
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now()) @db.Timestamptz()
+  updated_at     DateTime @updatedAt @db.Timestamptz()
+
+  channels         PaymentChannel[]     @relation("RecipientChannels")
+  webhook_configs  WebhookConfig[]
+  notification_outbox NotificationOutbox[]
+
+  @@index([wallet_address], name: "idx_merchants_wallet")
+  @@index([api_key_hash], name: "idx_merchants_api_key_hash")
+  @@map("merchants")
+}
+
+model PaymentChannel {
+  channel_id          String        @id @db.VarChar(66)
+  payer_address       String        @db.VarChar(42)
+  recipient_address   String        @db.VarChar(42)
+  token_address       String        @db.VarChar(42)
+  total_deposit       Decimal       @db.Decimal(78, 0)
+  settled_amount      Decimal       @default(0) @db.Decimal(78, 0)
+  reserved_amount     Decimal       @default(0) @db.Decimal(78, 0)
+  expiration_timestamp BigInt
+  dispute_period_seconds BigInt     @default(86400)
+  status              ChannelStatus @default(PENDING)
+  open_tx_hash        String?       @db.VarChar(66)
+  open_block_number   BigInt?
+  created_at          DateTime      @default(now()) @db.Timestamptz()
+  updated_at          DateTime      @updatedAt @db.Timestamptz()
+
+  payer     User     @relation("PayerChannels", fields: [payer_address], references: [wallet_address])
+  recipient Merchant @relation("RecipientChannels", fields: [recipient_address], references: [wallet_address])
+
+  vouchers          Voucher[]
+  settlements       Settlement[]
+  blockchain_events BlockchainEvent[]
+  dispute           Dispute?
+  ai_evaluations    AiEvaluation[]
+
+  @@index([payer_address], name: "idx_channels_payer")
+  @@index([recipient_address], name: "idx_channels_recipient")
+  @@index([status], name: "idx_channels_status")
+  @@map("payment_channels")
+}
+
+model Voucher {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  channel_id        String   @db.VarChar(66)
+  nonce             BigInt
+  cumulative_amount Decimal  @db.Decimal(78, 0)
+  signature         String   @db.VarChar(132)
+  valid_until       BigInt
+  is_settled        Boolean  @default(false)
+  created_at        DateTime @default(now()) @db.Timestamptz()
+
+  channel     PaymentChannel @relation(fields: [channel_id], references: [channel_id], onDelete: Cascade)
+  settlements Settlement[]
+
+  @@unique([channel_id, nonce], name: "uq_channel_nonce")
+  @@index([channel_id, nonce(sort: Desc)], name: "idx_vouchers_channel_nonce_desc")
+  @@map("vouchers")
+}
+
+model Settlement {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  channel_id      String           @db.VarChar(66)
+  voucher_id      String           @db.Uuid
+  claimed_amount  Decimal          @db.Decimal(78, 0)
+  net_payout      Decimal          @db.Decimal(78, 0)
+  relayer_gas_fee Decimal          @default(0) @db.Decimal(78, 0)
+  protocol_fee    Decimal          @default(0) @db.Decimal(78, 0)
+  status          SettlementStatus @default(PENDING)
+  retry_count     Int              @default(0)
+  tx_hash         String?          @db.VarChar(66)
+  created_at      DateTime         @default(now()) @db.Timestamptz()
+  finalized_at    DateTime?        @db.Timestamptz()
+
+  channel PaymentChannel   @relation(fields: [channel_id], references: [channel_id])
+  voucher Voucher          @relation(fields: [voucher_id], references: [id])
+  receipt SettlementReceipt?
+
+  @@index([channel_id], name: "idx_settlements_channel")
+  @@index([status], name: "idx_settlements_status")
+  @@map("settlements")
+}
+
+model SettlementReceipt {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  settlement_id       String   @unique @db.Uuid
+  tx_hash             String   @unique @db.VarChar(66)
+  block_number        BigInt
+  gas_used            BigInt
+  effective_gas_price BigInt
+  created_at          DateTime @default(now()) @db.Timestamptz()
+
+  settlement Settlement @relation(fields: [settlement_id], references: [id])
+
+  @@index([tx_hash], name: "idx_receipts_tx_hash")
+  @@index([block_number], name: "idx_receipts_block")
+  @@map("settlement_receipts")
+}
+
+model BlockchainEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_name  String   @db.VarChar(50)
+  channel_id  String   @db.VarChar(66)
+  tx_hash     String   @db.VarChar(66)
+  block_number BigInt
+  log_index   Int
+  raw_data    Json
+  processed   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  channel PaymentChannel @relation(fields: [channel_id], references: [channel_id])
+
+  @@unique([tx_hash, log_index], name: "uq_tx_log_index")
+  @@map("blockchain_events")
+}
+
+model Dispute {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  channel_id        String    @unique @db.VarChar(66)
+  initiated_by      String    @db.VarChar(42)
+  dispute_expires_at BigInt
+  counter_settled   Boolean   @default(false)
+  created_at        DateTime  @default(now()) @db.Timestamptz()
+  resolved_at       DateTime? @db.Timestamptz()
+
+  channel PaymentChannel @relation(fields: [channel_id], references: [channel_id])
+
+  @@index([dispute_expires_at], name: "idx_disputes_expiry")
+  @@map("disputes")
+}
+
+model WebhookConfig {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchant_id       String   @db.Uuid
+  url               String   @db.VarChar(255)
+  hmac_secret       String   @db.VarChar(64)
+  subscribed_events String[]
+  is_enabled        Boolean  @default(true)
+  created_at        DateTime @default(now()) @db.Timestamptz()
+  updated_at        DateTime @updatedAt @db.Timestamptz()
+
+  merchant Merchant @relation(fields: [merchant_id], references: [id], onDelete: Cascade)
+
+  @@index([merchant_id], name: "idx_webhook_merchant")
+  @@map("webhook_configs")
+}
+
+model NotificationOutbox {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchant_id     String         @db.Uuid
+  event_type      String         @db.VarChar(50)
+  payload         Json
+  target_url      String         @db.VarChar(255)
+  attempts        Int            @default(0)
+  delivery_status DeliveryStatus @default(PENDING)
+  last_error      String?
+  next_retry_at   DateTime       @default(now()) @db.Timestamptz()
+  created_at      DateTime       @default(now()) @db.Timestamptz()
+
+  merchant Merchant @relation(fields: [merchant_id], references: [id], onDelete: Cascade)
+
+  @@index([delivery_status, next_retry_at], name: "idx_outbox_queue")
+  @@map("notification_outbox")
+}
+
+model AiEvaluation {
+  id                   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  channel_id           String? @db.VarChar(66)
+  evaluation_type      String  @db.VarChar(50)
+  risk_score           Int
+  reasoning_tags       Json
+  raw_advisory_payload Json
+  created_at           DateTime @default(now()) @db.Timestamptz()
+
+  channel PaymentChannel? @relation(fields: [channel_id], references: [channel_id], onDelete: SetNull)
+
+  @@map("ai_evaluations")
+}
+
+model AuditLog {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor_address  String   @db.VarChar(42)
+  action         String   @db.VarChar(50)
+  details        Json
+  ip_address     String?  @db.VarChar(45)
+  created_at     DateTime @default(now()) @db.Timestamptz()
+
+  @@index([actor_address], name: "idx_audit_actor")
+  @@index([action], name: "idx_audit_action")
+  @@map("audit_logs")
+}

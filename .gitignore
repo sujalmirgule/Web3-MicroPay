@@ -62,6 +62,10 @@ pnpm-debug.log*
 dump.rdb
 *.sql.gz
 
+# Prisma
+backend/prisma/migrations/**/.gitkeep
+
+
 # Python (if AI/analytics services are used)
 __pycache__/
 *.py[cod]
