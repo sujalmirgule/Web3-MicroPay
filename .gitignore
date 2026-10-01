@@ -1,0 +1,91 @@
+# ==========================================
+# Web3 MicroPay - Git Ignore Configuration
+# ==========================================
+
+# Environment & Secrets (NEVER COMMIT)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+secrets.json
+mnemonic.txt
+keystore/
+wallet.json
+private_key*
+
+# Dependency Directories
+node_modules/
+jspm_packages/
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+
+# Build & Compilation Artifacts
+dist/
+build/
+out/
+.next/
+cache/
+artifacts/
+typechain/
+typechain-types/
+broadcast/
+flattened/
+
+# Hardhat & Foundry
+cache_hardhat/
+.openzeppelin/unknown-*.json
+
+# Coverage, Reports & Testing
+coverage/
+coverage.json
+*.lcov
+.nyc_output/
+gasReporterOutput.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Database & Storage
+*.sqlite
+*.sqlite3
+*.db
+dump.rdb
+*.sql.gz
+
+# Python (if AI/analytics services are used)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# Temporary & Scratch Files
+tmp/
+temp/
+scratch/

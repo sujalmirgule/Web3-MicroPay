@@ -1,0 +1,22 @@
+{
+  "name": "web3-micropay",
+  "version": "0.1.0",
+  "description": "High-throughput, low-latency Web3 micropayment infrastructure with off-chain state channels/vouchers, AI-assisted verification, and deterministic on-chain settlement.",
+  "private": true,
+  "author": "Web3 MicroPay Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "workspaces": [
+    "contracts",
+    "backend",
+    "frontend",
+    "shared"
+  ],
+  "scripts": {
+    "lint": "echo \"Linting not yet configured\"",
+    "test": "echo \"Tests not yet configured\""
+  }
+}
