@@ -44,6 +44,27 @@ Web3 MicroPay/
 │   │   ├── security-arch.md  # Multi-layer security architecture
 │   │   ├── failure-recovery.md # Reliability & recovery matrix
 │   │   └── deployment.md     # Infrastructure & deployment topology
+│   ├── system-design/        # Detailed System Design & Implementation Specs (Phase 2)
+│   │   ├── decisions-resolution.md # Frozen Phase 1 architectural decisions
+│   │   ├── modules.md        # 16-module decomposition & package governance
+│   │   ├── database.md       # PostgreSQL DDL, ERD & consistency matrix
+│   │   ├── api.md            # OpenAPI 3.1 REST contracts & schemas
+│   │   ├── authentication.md # SIWE lifecycle & JWT RBAC matrix
+│   │   ├── channels.md       # Formal channel state machine & invariants
+│   │   ├── vouchers.md       # EIP-712 protocol & 11-step verification
+│   │   ├── settlement.md     # Relayer batching & KMS signer isolation
+│   │   ├── smart-contracts.md # Solidity interface, errors & state machine
+│   │   ├── indexer.md        # WebSocket log ingestion & reorg handling
+│   │   ├── notifications.md  # Transactional outbox & signed webhooks
+│   │   ├── ai.md             # Gemini prompts, Zod schemas & circuit breaker
+│   │   ├── security.md       # Multi-tier implementation defense controls
+│   │   ├── errors.md         # Error catalog, idempotency & retry rules
+│   │   ├── sequence-diagrams.md # 12 end-to-end execution sequences
+│   │   ├── data-flows.md     # Level 0 & Level 1 DFDs with trust boundaries
+│   │   ├── nfr-and-testing.md # SLA targets & multi-tier testing strategy
+│   │   ├── local-dev.md      # Workstation setup & pre-funded test accounts
+│   │   ├── traceability.md   # Feature & Requirement Traceability Matrices
+│   │   └── validation.md     # 9-dimension design validation audit
 │   └── decisions/            # Architecture Decision Records (ADRs)
 │       ├── ADR-001-monorepo-structure.md
 │       ├── ADR-002-blockchain-network-and-contract-pattern.md
@@ -51,23 +72,24 @@ Web3 MicroPay/
 │       ├── ADR-004-database-and-persistence-strategy.md
 │       └── ADR-005-ai-subsystem-guardrails-and-scope.md
 │
-├── contracts/                # Smart contracts (Solidity, Hardhat/Foundry) [Phase 2/3]
-├── backend/                  # API Gateway, Relayer, Event Indexer [Phase 2/3]
-├── frontend/                 # Web3 Client & Merchant Portal [Phase 2/3]
-└── shared/                   # Shared TypeScript types, ABIs, Schemas [Phase 2/3]
+├── contracts/                # Smart contracts (Solidity, Hardhat/Foundry) [Phase 3]
+├── backend/                  # API Gateway, Relayer, Event Indexer [Phase 4]
+├── frontend/                 # Web3 Client & Merchant Portal [Phase 5]
+└── shared/                   # Shared TypeScript types, ABIs, Schemas [Phase 3+]
 ```
 
 ---
 
 ## 3. Project Status & Current Phase
 
-- [x] **Phase 0:** Project Initialization & Environment Discovery *(Completed)*
-- [x] **Phase 1:** System Architecture Foundation & Planning *(Completed)*
-- [ ] **Phase 2:** Detailed System Design *(Next Step)*
-- [ ] **Phase 3:** Smart Contract & Core Protocol Implementation
+- [x] **Phase 0:** Project Initialization & Environment Discovery *(Completed & Pushed)*
+- [x] **Phase 1:** System Architecture Foundation & Planning *(Completed & Pushed)*
+- [x] **Phase 2:** Detailed System Design *(Completed)*
+- [ ] **Phase 3:** Smart Contract & Core Protocol Implementation *(Next Step)*
 - [ ] **Phase 4:** Backend API, Indexer & Relayer Implementation
 - [ ] **Phase 5:** Frontend Web3 Client Implementation
 - [ ] **Phase 6:** Testing, Auditing & Deployment
+
 
 ---
 
