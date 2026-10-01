@@ -84,11 +84,12 @@ Web3 MicroPay/
 
 - [x] **Phase 0:** Project Initialization & Environment Discovery *(Completed & Pushed)*
 - [x] **Phase 1:** System Architecture Foundation & Planning *(Completed & Pushed)*
-- [x] **Phase 2:** Detailed System Design *(Completed)*
-- [ ] **Phase 3:** Smart Contract & Core Protocol Implementation *(Next Step)*
-- [ ] **Phase 4:** Backend API, Indexer & Relayer Implementation
+- [x] **Phase 2:** Detailed System Design *(Completed & Pushed)*
+- [x] **Phase 3:** Smart Contract & Core Protocol Implementation *(Completed)*
+- [ ] **Phase 4:** Backend API, Indexer & Relayer Implementation *(Next Step)*
 - [ ] **Phase 5:** Frontend Web3 Client Implementation
 - [ ] **Phase 6:** Testing, Auditing & Deployment
+
 
 
 ---

@@ -1,0 +1,14 @@
+{
+  "name": "@web3-micropay/shared",
+  "version": "0.1.0",
+  "description": "Shared TypeScript types, EIP-712 constants, and contract ABIs for Web3 MicroPay",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

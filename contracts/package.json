@@ -1,0 +1,19 @@
+{
+  "name": "@web3-micropay/contracts",
+  "version": "0.1.0",
+  "description": "Smart contracts for Web3 MicroPay payment channel vault",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "clean": "hardhat clean"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.5",
+    "typescript": "^5.4.5"
+  }
+}

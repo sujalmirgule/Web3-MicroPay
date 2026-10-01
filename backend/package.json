@@ -1,0 +1,27 @@
+{
+  "name": "@web3-micropay/backend",
+  "version": "0.1.0",
+  "description": "Backend API, Voucher Verification Engine, Relayer and Indexer for Web3 MicroPay",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "mocha -r ts-node/register \"test/**/*.test.ts\" --timeout 10000 --exit"
+  },
+
+  "dependencies": {
+    "@web3-micropay/shared": "*",
+    "ethers": "^6.13.1",
+    "zod": "^3.23.8",
+    "pino": "^9.1.0"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.16",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.14.2",
+    "@types/pino": "^7.0.5",
+    "chai": "^4.4.1",
+    "mocha": "^10.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}

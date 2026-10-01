@@ -16,7 +16,9 @@
     "shared"
   ],
   "scripts": {
-    "lint": "echo \"Linting not yet configured\"",
-    "test": "echo \"Tests not yet configured\""
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test:contracts && npm run test:backend",
+    "test:contracts": "npm run test --workspace=contracts",
+    "test:backend": "npm run test --workspace=backend"
   }
 }

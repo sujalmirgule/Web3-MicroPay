@@ -1,0 +1,15 @@
+{
+  "name": "@web3-micropay/frontend",
+  "version": "0.1.0",
+  "description": "Web3 client interface and EIP-712 voucher signing foundation for Web3 MicroPay",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@web3-micropay/shared": "*",
+    "ethers": "^6.13.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
