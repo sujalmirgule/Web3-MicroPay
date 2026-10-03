@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Navbar } from "./components/layout/Navbar";
 import { Footer } from "./components/layout/Footer";
 import { NetworkBanner } from "./components/layout/NetworkBanner";
@@ -16,6 +16,9 @@ import { formatEth, truncateAddress, truncateHash } from "./utils/formatters";
 import { isValidPositiveAmount } from "./utils/validators";
 import { DEPLOYMENT_INFO, MicroVoucher } from "@web3-micropay/shared";
 import { ethers } from "ethers";
+
+// Voucher History Component and Types
+import { VoucherHistory, VoucherRecord } from "./components/vouchers/VoucherHistory";
 
 // Product-facing pages
 import { LandingPage } from "./pages/LandingPage";
@@ -43,6 +46,124 @@ import {
   Activity,
   Coins,
 } from "lucide-react";
+
+interface VoucherAmountStatusDisplayProps {
+  channelDepositEth: string;
+  voucherAmountEth: string;
+  remainingBalanceEth: string;
+  isAmountExceedingDeposit: boolean;
+  voucherAmountError: {
+    message: string;
+    channelDeposit: string;
+    voucherAmount: string;
+    maxAllowed: string;
+  } | null;
+  onChangeAmount: () => void;
+}
+
+const VoucherAmountStatusDisplay: React.FC<VoucherAmountStatusDisplayProps> = ({
+  channelDepositEth,
+  voucherAmountEth,
+  remainingBalanceEth,
+  isAmountExceedingDeposit,
+  voucherAmountError,
+  onChangeAmount,
+}) => {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      {/* Dynamic Breakdown */}
+      <div
+        style={{
+          padding: "14px",
+          backgroundColor: "var(--bg-tertiary)",
+          borderRadius: "8px",
+          border: isAmountExceedingDeposit ? "1px solid var(--status-error)" : "1px solid var(--border-subtle)",
+          fontSize: "13px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ color: "var(--text-secondary)" }}>Channel Deposit:</span>
+          <strong style={{ color: "var(--text-primary)" }}>{channelDepositEth} ETH</strong>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ color: "var(--text-secondary)" }}>Voucher Cumulative Amount:</span>
+          <strong style={{ color: isAmountExceedingDeposit ? "var(--status-error)" : "var(--brand-primary)" }}>
+            {voucherAmountEth || "0"} ETH
+          </strong>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ color: "var(--text-secondary)" }}>Remaining Available:</span>
+          <strong style={{ color: isAmountExceedingDeposit ? "var(--status-error)" : "var(--status-success)" }}>
+            {remainingBalanceEth} ETH
+          </strong>
+        </div>
+
+        <div
+          style={{
+            marginTop: "4px",
+            paddingTop: "8px",
+            borderTop: "1px solid var(--border-subtle)",
+            fontWeight: 600,
+            fontSize: "12px",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            color: isAmountExceedingDeposit ? "var(--status-error)" : "var(--status-success)",
+          }}
+        >
+          {isAmountExceedingDeposit ? (
+            <span>✕ Amount exceeds available channel balance</span>
+          ) : (
+            <span>✓ Amount within channel balance</span>
+          )}
+        </div>
+      </div>
+
+      {/* Safety Invariant Rejection Warning Box */}
+      {(isAmountExceedingDeposit || voucherAmountError) && (
+        <div
+          style={{
+            padding: "14px 16px",
+            backgroundColor: "rgba(239, 68, 68, 0.08)",
+            border: "1px solid rgba(239, 68, 68, 0.35)",
+            borderRadius: "8px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--status-error)", fontWeight: 700, fontSize: "14px" }}>
+            <AlertCircle size={16} />
+            <span>Voucher amount exceeds the channel deposit.</span>
+          </div>
+
+          <div style={{ fontSize: "13px", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div>Channel Deposit: <strong style={{ color: "var(--text-primary)" }}>{voucherAmountError?.channelDeposit || `${channelDepositEth} ETH`}</strong></div>
+            <div>Voucher Amount: <strong style={{ color: "var(--status-error)" }}>{voucherAmountError?.voucherAmount || `${voucherAmountEth} ETH`}</strong></div>
+            <div>Maximum Allowed: <strong style={{ color: "var(--status-success)" }}>{voucherAmountError?.maxAllowed || `${channelDepositEth} ETH`}</strong></div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onChangeAmount}
+            className="btn btn-outline btn-sm"
+            style={{
+              marginTop: "4px",
+              alignSelf: "flex-start",
+              color: "var(--status-error)",
+              borderColor: "rgba(239, 68, 68, 0.4)",
+            }}
+          >
+            Change Amount
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const App: React.FC = () => {
   const {
@@ -95,6 +216,7 @@ export const App: React.FC = () => {
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
 
   // Voucher Generator State
+  const voucherAmountInputRef = useRef<HTMLInputElement>(null);
   const [voucherAmountEth, setVoucherAmountEth] = useState<string>("0.001");
   const [voucherNonce, setVoucherNonce] = useState<number>(1);
   const [isSigningVoucher, setIsSigningVoucher] = useState(false);
@@ -102,6 +224,37 @@ export const App: React.FC = () => {
   const [isCopied, setIsCopied] = useState(false);
   const [isSubmittingToBackend, setIsSubmittingToBackend] = useState(false);
   const [backendSubmissionStatus, setBackendSubmissionStatus] = useState<string | null>(null);
+
+  // Pre-signing Validation Warning State
+  const [voucherAmountError, setVoucherAmountError] = useState<{
+    message: string;
+    channelDeposit: string;
+    voucherAmount: string;
+    maxAllowed: string;
+  } | null>(null);
+
+  // Voucher History Array State (Preserves all historical records, never overwritten)
+  const [voucherHistory, setVoucherHistory] = useState<VoucherRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem("micropay_voucher_history");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (err) {
+      console.warn("Could not load voucher history from localStorage:", err);
+    }
+    return [];
+  });
+
+  // Persist voucher history array across browser refreshes
+  useEffect(() => {
+    try {
+      localStorage.setItem("micropay_voucher_history", JSON.stringify(voucherHistory));
+    } catch (err) {
+      console.warn("Could not persist voucher history to localStorage:", err);
+    }
+  }, [voucherHistory]);
 
   // Settlement State
   const [isSettling, setIsSettling] = useState(false);
@@ -114,6 +267,84 @@ export const App: React.FC = () => {
     (import.meta as any).env?.VITE_MICROPAY_VAULT_ADDRESS ||
     DEPLOYMENT_INFO?.vaultAddress ||
     "0x7BD8202051Ed9499489e7b9992b4d7D62a3A3C86";
+
+  // Selected channel object from channels list
+  const selectedChannel = channels.find(
+    (c) => c.channelId.toLowerCase() === selectedChannelId.toLowerCase()
+  );
+
+  // Read channel deposit accurately (from on-chain state if loaded, else channel item)
+  const channelDepositWei: bigint = (() => {
+    if (selectedChannelState?.totalDeposit && selectedChannelState.totalDeposit !== "0") {
+      try {
+        return BigInt(selectedChannelState.totalDeposit);
+      } catch {
+        // fallback
+      }
+    }
+    if (selectedChannel?.totalDeposit && selectedChannel.totalDeposit !== "0") {
+      try {
+        return BigInt(selectedChannel.totalDeposit);
+      } catch {
+        // fallback
+      }
+    }
+    return BigInt(0);
+  })();
+
+  const channelDepositEth: string =
+    channelDepositWei > BigInt(0) ? ethers.formatEther(channelDepositWei) : "0.0";
+
+  // Parsed cumulative amount entered in input
+  const parsedVoucherWei: bigint = (() => {
+    try {
+      if (voucherAmountEth && isValidPositiveAmount(voucherAmountEth)) {
+        return ethers.parseEther(voucherAmountEth);
+      }
+    } catch {
+      // invalid input
+    }
+    return BigInt(0);
+  })();
+
+  // Critical Invariant: cumulativeVoucherAmount <= channelDeposit
+  const isAmountExceedingDeposit: boolean =
+    channelDepositWei > BigInt(0) && parsedVoucherWei > channelDepositWei;
+
+  // Remaining available channel balance = channelDeposit - cumulativeVoucherAmount
+  const remainingBalanceWei: bigint =
+    channelDepositWei >= parsedVoucherWei ? channelDepositWei - parsedVoucherWei : BigInt(0);
+  const remainingBalanceEth: string = ethers.formatEther(remainingBalanceWei);
+
+  // Sign Voucher button enablement
+  const isVoucherAmountValid: boolean =
+    Boolean(voucherAmountEth) &&
+    isValidPositiveAmount(voucherAmountEth) &&
+    parsedVoucherWei > BigInt(0) &&
+    !isAmountExceedingDeposit;
+
+  // Handler to stage a voucher from history for settlement
+  const handleSelectForSettlement = (record: VoucherRecord) => {
+    setSignedVoucher({
+      channelId: record.channelId as `0x${string}`,
+      payer: record.sender as `0x${string}`,
+      recipient: record.receiver as `0x${string}`,
+      cumulativeAmount: record.cumulativeAmount,
+      nonce: record.nonce,
+      validUntil: record.validUntil,
+      signature: record.signature as `0x${string}`,
+    });
+    setSelectedChannelId(record.channelId);
+    showToast(`Staged Voucher #${record.nonce} for on-chain settlement.`, "info");
+    navigate("/dashboard/transactions");
+  };
+
+  // Handler for Change Amount button
+  const handleChangeAmount = () => {
+    setVoucherAmountEth(channelDepositEth);
+    setVoucherAmountError(null);
+    voucherAmountInputRef.current?.focus();
+  };
 
   // Load channels from local storage or backend
   const loadChannels = useCallback(async () => {
@@ -196,54 +427,61 @@ export const App: React.FC = () => {
       return;
     }
 
+    // 1. Read the selected channel.
+    // 2. Read the original channel deposit.
+    // 3. Read the new cumulative voucher amount.
+    // 4. Compare: newCumulativeAmount <= channelDeposit
+    let onChainDepositWei = channelDepositWei;
+    let recipientAddr = "";
+    let onChainState = selectedChannelState;
+    try {
+      const onChain = await client.getChannelState(selectedChannelId);
+      onChainState = onChain;
+      setSelectedChannelState(onChain);
+      recipientAddr = onChain.recipientAddress || "";
+      if (onChain?.totalDeposit && onChain.totalDeposit !== "0") {
+        onChainDepositWei = BigInt(onChain.totalDeposit);
+      }
+    } catch {
+      recipientAddr = selectedChannel?.recipientAddress || "";
+    }
+
+    if (!recipientAddr || recipientAddr === ethers.ZeroAddress) {
+      recipientAddr = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+    }
+
+    const cumulativeAmountWei = ethers.parseEther(voucherAmountEth);
+
+    // CRITICAL INVARIANT: cumulativeVoucherAmount <= channelDeposit
+    // If false: DO NOT open MetaMask! Show error and prompt for change
+    if (onChainDepositWei > BigInt(0) && cumulativeAmountWei > onChainDepositWei) {
+      const maxAllowedStr = `${ethers.formatEther(onChainDepositWei)} ETH`;
+      setVoucherAmountError({
+        message: "Voucher amount exceeds the channel deposit.",
+        channelDeposit: maxAllowedStr,
+        voucherAmount: `${voucherAmountEth} ETH`,
+        maxAllowed: maxAllowedStr,
+      });
+      showToast("Voucher amount exceeds the channel deposit.", "error");
+      return; // DO NOT OPEN METAMASK
+    }
+
+    // Invariant Check 2: Monotonic increase (amount must exceed settled amount)
+    if (onChainState?.settledAmount && onChainState.settledAmount !== "0") {
+      const settledWei = BigInt(onChainState.settledAmount);
+      if (cumulativeAmountWei <= settledWei) {
+        showToast(
+          `Contract Invariant: Voucher amount (${voucherAmountEth} ETH) must exceed already settled amount (${formatEth(onChainState.settledAmount)} ETH).`,
+          "error"
+        );
+        return;
+      }
+    }
+
     try {
       setIsSigningVoucher(true);
       setBackendSubmissionStatus(null);
-
-      // Query on-chain channel state to ensure accuracy
-      let recipientAddr = "";
-      let onChainState = selectedChannelState;
-      try {
-        const onChain = await client.getChannelState(selectedChannelId);
-        onChainState = onChain;
-        setSelectedChannelState(onChain);
-        recipientAddr = onChain.recipientAddress || "";
-      } catch {
-        const ch = channels.find(
-          (c) => c.channelId.toLowerCase() === selectedChannelId.toLowerCase()
-        );
-        recipientAddr = ch?.recipientAddress || "";
-      }
-
-      if (!recipientAddr || recipientAddr === ethers.ZeroAddress) {
-        recipientAddr = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-      }
-
-      const cumulativeAmountWei = ethers.parseEther(voucherAmountEth);
-
-      // Invariant Check 1: Voucher amount cannot exceed channel escrow collateral
-      if (onChainState?.totalDeposit && onChainState.totalDeposit !== "0") {
-        const totalDepositWei = BigInt(onChainState.totalDeposit);
-        if (cumulativeAmountWei > totalDepositWei) {
-          showToast(
-            `Contract Invariant: Voucher amount (${voucherAmountEth} ETH) exceeds channel escrow deposit (${formatEth(onChainState.totalDeposit)} ETH).`,
-            "error"
-          );
-          return;
-        }
-      }
-
-      // Invariant Check 2: Monotonic increase (amount must exceed settled amount)
-      if (onChainState?.settledAmount && onChainState.settledAmount !== "0") {
-        const settledWei = BigInt(onChainState.settledAmount);
-        if (cumulativeAmountWei <= settledWei) {
-          showToast(
-            `Contract Invariant: Voucher amount (${voucherAmountEth} ETH) must exceed already settled amount (${formatEth(onChainState.settledAmount)} ETH).`,
-            "error"
-          );
-          return;
-        }
-      }
+      setVoucherAmountError(null);
 
       const validUntil = Math.floor(Date.now() / 1000) + 86400 * 30; // 30 days validity
 
@@ -260,6 +498,28 @@ export const App: React.FC = () => {
 
       setSignedVoucher(voucher);
       showToast(`Payment voucher #${voucherNonce} signed successfully!`, "success");
+
+      if (!voucher.signature) {
+        throw new Error("Voucher signature missing from wallet response");
+      }
+
+      // VOUCHER HISTORY: NEVER OVERWRITE OLD VOUCHERS. ALWAYS APPEND NEW RECORD!
+      const newRecord: VoucherRecord = {
+        id: `vch_${Date.now()}_${voucher.nonce}`,
+        channelId: voucher.channelId,
+        sender: voucher.payer,
+        receiver: voucher.recipient,
+        cumulativeAmount: voucher.cumulativeAmount,
+        nonce: voucher.nonce,
+        signature: voucher.signature,
+        validUntil: voucher.validUntil,
+        status: "SIGNED",
+        createdAt: new Date().toISOString(),
+        settledAt: null,
+        transactionHash: null,
+      };
+
+      setVoucherHistory((prev) => [newRecord, ...prev]);
 
       // SENDER NOTIFICATION: Voucher Signed
       addNotification({
@@ -319,25 +579,46 @@ export const App: React.FC = () => {
   };
 
   // Settle Voucher On-Chain directly on Sepolia
-  const handleSettleClaim = async () => {
-    if (!client || !signedVoucher || !signedVoucher.signature) {
+  const handleSettleClaim = async (targetVoucher?: VoucherRecord | MicroVoucher) => {
+    const voucherToSettle = (targetVoucher as any) || signedVoucher;
+    if (!client || !voucherToSettle || !voucherToSettle.signature) {
       showToast("No signed voucher available to settle.", "warning");
       return;
     }
 
-    // Pre-flight Invariant Check: Claim amount vs escrow deposit
-    if (selectedChannelState?.totalDeposit && selectedChannelState.totalDeposit !== "0") {
-      const totalDepositWei = BigInt(selectedChannelState.totalDeposit);
-      const claimWei = BigInt(signedVoucher.cumulativeAmount);
-      if (claimWei > totalDepositWei) {
-        const invMsg = `Contract Invariant Violated: Claim amount (${ethers.formatEther(claimWei)} ETH) exceeds escrow deposit (${formatEth(selectedChannelState.totalDeposit)} ETH).`;
-        setSettleError(invMsg);
-        showToast(invMsg, "error");
-        return;
+    // VALIDATION BEFORE SETTLEMENT:
+    // Read channel deposit
+    let chDepositWei = BigInt(0);
+    try {
+      const onChain = await client.getChannelState(voucherToSettle.channelId);
+      if (onChain?.totalDeposit && onChain.totalDeposit !== "0") {
+        chDepositWei = BigInt(onChain.totalDeposit);
+      }
+    } catch (err) {
+      console.warn("Could not query on-chain channel state before settlement:", err);
+    }
+
+    if (chDepositWei === BigInt(0)) {
+      const ch = channels.find(
+        (c) => c.channelId.toLowerCase() === voucherToSettle.channelId.toLowerCase()
+      );
+      if (ch?.totalDeposit && ch.totalDeposit !== "0") {
+        chDepositWei = BigInt(ch.totalDeposit);
       }
     }
 
-    const recipientAddr = signedVoucher.recipient;
+    const claimWei = BigInt(voucherToSettle.cumulativeAmount);
+
+    // Verify invariant: voucher.cumulativeAmount <= channel.deposit
+    // If condition fails: do not submit transaction, do not open MetaMask, show clear error
+    if (chDepositWei > BigInt(0) && claimWei > chDepositWei) {
+      const invMsg = "Settlement rejected: voucher amount exceeds the channel deposit.";
+      setSettleError(invMsg);
+      showToast(invMsg, "error");
+      return; // DO NOT OPEN METAMASK
+    }
+
+    const recipientAddr = voucherToSettle.recipient || (voucherToSettle as any).receiver;
 
     try {
       setIsSettling(true);
@@ -349,25 +630,35 @@ export const App: React.FC = () => {
       showToast("Submitting settleClaim on-chain transaction to Sepolia...", "info");
 
       const tx = await client.settleClaim(
-        signedVoucher.channelId,
-        BigInt(signedVoucher.cumulativeAmount),
-        signedVoucher.nonce,
-        signedVoucher.validUntil,
-        signedVoucher.signature
+        voucherToSettle.channelId,
+        BigInt(voucherToSettle.cumulativeAmount),
+        voucherToSettle.nonce,
+        voucherToSettle.validUntil,
+        voucherToSettle.signature
       );
 
       setSettleTxHash(tx.hash);
       showToast("Settlement transaction submitted. Waiting for confirmation...", "info");
+
+      // UPDATE VOUCHER HISTORY: SIGNED -> SETTLEMENT_SUBMITTED
+      setVoucherHistory((prev) =>
+        prev.map((v) =>
+          v.channelId.toLowerCase() === voucherToSettle.channelId.toLowerCase() &&
+          v.nonce === voucherToSettle.nonce
+            ? { ...v, status: "SETTLEMENT_SUBMITTED", transactionHash: tx.hash }
+            : v
+        )
+      );
 
       // SENDER NOTIFICATION: Settlement Submitted
       addNotification({
         type: "SETTLEMENT_SUBMITTED",
         title: "Settlement Submitted",
         message: "Settlement transaction submitted to Ethereum Sepolia.",
-        amount: `${ethers.formatEther(signedVoucher.cumulativeAmount)} ETH`,
+        amount: `${ethers.formatEther(voucherToSettle.cumulativeAmount)} ETH`,
         sender: address || undefined,
         receiver: recipientAddr,
-        channelId: signedVoucher.channelId,
+        channelId: voucherToSettle.channelId,
         transactionHash: tx.hash,
         timestamp: new Date().toISOString(),
       });
@@ -382,31 +673,44 @@ export const App: React.FC = () => {
       setConfirmedSettlementReceipt(receipt);
       showToast("Payment settlement confirmed on Ethereum Sepolia!", "success");
 
+      // UPDATE VOUCHER HISTORY: SETTLEMENT_SUBMITTED -> SETTLED
+      setVoucherHistory((prev) =>
+        prev.map((v) =>
+          v.channelId.toLowerCase() === voucherToSettle.channelId.toLowerCase() &&
+          v.nonce === voucherToSettle.nonce
+            ? {
+                ...v,
+                status: "SETTLED",
+                transactionHash: receipt.hash,
+                settledAt: new Date().toISOString(),
+              }
+            : v
+        )
+      );
+
       // SENDER NOTIFICATION: Settlement Confirmed
       addNotification({
         type: "SETTLEMENT_CONFIRMED",
         title: "Settlement Confirmed",
         message: "Payment settlement confirmed on Ethereum Sepolia.",
-        amount: `${ethers.formatEther(signedVoucher.cumulativeAmount)} ETH`,
+        amount: `${ethers.formatEther(voucherToSettle.cumulativeAmount)} ETH`,
         sender: address || undefined,
         receiver: recipientAddr,
-        channelId: signedVoucher.channelId,
+        channelId: voucherToSettle.channelId,
         transactionHash: receipt.hash,
         timestamp: new Date().toISOString(),
       });
 
       // RECEIVER NOTIFICATION: Payment Received
-      // ONLY triggered upon confirmed blockchain settlement!
-      // Sent to server notification endpoint so receiver on any browser/device can see it!
       addNotification({
         type: "PAYMENT_RECEIVED",
         recipientId: recipientAddr.toLowerCase(),
         title: "Payment Received",
-        message: `${ethers.formatEther(signedVoucher.cumulativeAmount)} ETH received from ${truncateAddress(address || undefined)}.`,
-        amount: `${ethers.formatEther(signedVoucher.cumulativeAmount)} ETH`,
+        message: `${ethers.formatEther(voucherToSettle.cumulativeAmount)} ETH received from ${truncateAddress(address || undefined)}.`,
+        amount: `${ethers.formatEther(voucherToSettle.cumulativeAmount)} ETH`,
         sender: address || undefined,
         receiver: recipientAddr,
-        channelId: signedVoucher.channelId,
+        channelId: voucherToSettle.channelId,
         transactionHash: receipt.hash,
         status: "UNREAD",
         read: false,
@@ -414,11 +718,22 @@ export const App: React.FC = () => {
       });
 
       // Refresh on-chain channel state
-      const updated = await client.getChannelState(signedVoucher.channelId);
+      const updated = await client.getChannelState(voucherToSettle.channelId);
       setSelectedChannelState(updated);
       loadChannels();
     } catch (err: any) {
       setSettleStatus("failed");
+
+      // UPDATE VOUCHER HISTORY: -> FAILED
+      setVoucherHistory((prev) =>
+        prev.map((v) =>
+          v.channelId.toLowerCase() === voucherToSettle.channelId.toLowerCase() &&
+          v.nonce === voucherToSettle.nonce
+            ? { ...v, status: "FAILED" }
+            : v
+        )
+      );
+
       let msg = "Settlement failed.";
       if (err?.code === 4001 || err?.message?.includes("rejected")) {
         msg = "Transaction rejected by wallet.";
@@ -429,8 +744,10 @@ export const App: React.FC = () => {
           if (errData && typeof errData === "string") {
             const parsed = vaultIface.parseError(errData);
             if (parsed) {
+              // Handle smart contract custom error InsufficientDeposit exactly as specified:
               if (parsed.name === "InsufficientDeposit") {
-                msg = `Contract Invariant Violated (InsufficientDeposit): Claim (${ethers.formatEther(parsed.args[0])} ETH) exceeds channel deposit (${ethers.formatEther(parsed.args[1])} ETH).`;
+                msg = "The voucher amount exceeds the funds deposited in this payment channel.";
+                console.error("Smart contract InsufficientDeposit args:", parsed.args);
               } else if (parsed.name === "CumulativeAmountTooLow") {
                 msg = `Contract Invariant Violated (CumulativeAmountTooLow): Claim (${ethers.formatEther(parsed.args[0])} ETH) must exceed already settled amount (${ethers.formatEther(parsed.args[1])} ETH).`;
               } else if (parsed.name === "InvalidSignature") {
@@ -686,9 +1003,13 @@ export const App: React.FC = () => {
                       Cumulative Amount (ETH)
                     </label>
                     <input
+                      ref={voucherAmountInputRef}
                       type="text"
                       value={voucherAmountEth}
-                      onChange={(e) => setVoucherAmountEth(e.target.value)}
+                      onChange={(e) => {
+                        setVoucherAmountEth(e.target.value);
+                        if (voucherAmountError) setVoucherAmountError(null);
+                      }}
                       placeholder="0.001"
                     />
                   </div>
@@ -705,6 +1026,16 @@ export const App: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Dynamic Deposit, Cumulative Amount, and Remaining Balance Display */}
+                <VoucherAmountStatusDisplay
+                  channelDepositEth={channelDepositEth}
+                  voucherAmountEth={voucherAmountEth}
+                  remainingBalanceEth={remainingBalanceEth}
+                  isAmountExceedingDeposit={isAmountExceedingDeposit}
+                  voucherAmountError={voucherAmountError}
+                  onChangeAmount={handleChangeAmount}
+                />
+
                 <div style={{ padding: "12px", backgroundColor: "rgba(245, 158, 11, 0.08)", borderRadius: "8px", border: "1px solid rgba(245, 158, 11, 0.2)", fontSize: "13px", color: "#fbbf24" }}>
                   Signing this voucher authorizes the specified cumulative payment. It does not transfer ETH by itself.
                 </div>
@@ -713,7 +1044,7 @@ export const App: React.FC = () => {
                   variant="primary"
                   size="lg"
                   onClick={handleSignVoucher}
-                  disabled={isSigningVoucher || !isConnected}
+                  disabled={isSigningVoucher || !isConnected || !isVoucherAmountValid}
                   isLoading={isSigningVoucher}
                   icon={<Send size={16} />}
                 >
@@ -761,6 +1092,13 @@ export const App: React.FC = () => {
                 )}
               </div>
             </Card>
+
+            {/* Permanent Historical Voucher Sequence */}
+            <VoucherHistory
+              vouchers={voucherHistory}
+              onSelectForSettlement={handleSelectForSettlement}
+              selectedChannelId={selectedChannelId}
+            />
           </div>
         )}
 
@@ -796,11 +1134,23 @@ export const App: React.FC = () => {
                   </div>
                 )}
 
+                {signedVoucher && channelDepositWei > BigInt(0) && BigInt(signedVoucher.cumulativeAmount) > channelDepositWei && (
+                  <div style={{ padding: "12px 14px", backgroundColor: "rgba(239, 68, 68, 0.1)", borderRadius: "8px", border: "1px solid rgba(239, 68, 68, 0.3)", color: "var(--status-error)", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <AlertCircle size={16} />
+                    <span>Settlement rejected: voucher amount exceeds the channel deposit.</span>
+                  </div>
+                )}
+
                 <Button
                   variant="primary"
                   size="lg"
-                  onClick={handleSettleClaim}
-                  disabled={isSettling || !signedVoucher || !isConnected}
+                  onClick={() => handleSettleClaim()}
+                  disabled={
+                    isSettling ||
+                    !signedVoucher ||
+                    !isConnected ||
+                    (channelDepositWei > BigInt(0) && BigInt(signedVoucher.cumulativeAmount) > channelDepositWei)
+                  }
                   isLoading={isSettling}
                   icon={<ShieldCheck size={16} />}
                 >
@@ -847,11 +1197,38 @@ export const App: React.FC = () => {
                 )}
               </div>
             </Card>
+
+            {/* Permanent Historical Voucher Sequence */}
+            <VoucherHistory
+              vouchers={voucherHistory}
+              onSelectForSettlement={handleSelectForSettlement}
+              selectedChannelId={selectedChannelId}
+            />
+          </div>
+        )}
+
+        {/* ROUTE 8b: Dedicated Voucher History View */}
+        {(currentPath === "/dashboard/history" || currentPath === "/history" || currentPath === "/dashboard/voucher-history") && (
+          <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
+            <div style={{ marginBottom: "24px" }}>
+              <h1 style={{ fontSize: "28px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
+                Voucher History
+              </h1>
+              <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "6px" }}>
+                Complete verifiable history of all signed and settled EIP-712 micro-payment vouchers.
+              </p>
+            </div>
+
+            <VoucherHistory
+              vouchers={voucherHistory}
+              onSelectForSettlement={handleSelectForSettlement}
+              selectedChannelId={selectedChannelId}
+            />
           </div>
         )}
 
         {/* ROUTE 9: Main Unified Dashboard Overview */}
-        {(currentPath === "/dashboard" || (!["/dashboard/channels", "/payment-channels", "/channels", "/dashboard/payments", "/payments", "/vouchers", "/dashboard/transactions", "/transactions", "/settle", "/dashboard/notifications", "/notifications", "/dashboard/profile", "/profile"].includes(currentPath))) && (
+        {(currentPath === "/dashboard" || (!["/dashboard/channels", "/payment-channels", "/channels", "/dashboard/payments", "/payments", "/vouchers", "/dashboard/transactions", "/transactions", "/settle", "/dashboard/history", "/history", "/dashboard/voucher-history", "/dashboard/notifications", "/notifications", "/dashboard/profile", "/profile"].includes(currentPath))) && (
           <div>
             {/* Header Section */}
             <div style={{ marginBottom: "32px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
@@ -1043,9 +1420,13 @@ export const App: React.FC = () => {
                         Cumulative Amount (ETH)
                       </label>
                       <input
+                        ref={voucherAmountInputRef}
                         type="text"
                         value={voucherAmountEth}
-                        onChange={(e) => setVoucherAmountEth(e.target.value)}
+                        onChange={(e) => {
+                          setVoucherAmountEth(e.target.value);
+                          if (voucherAmountError) setVoucherAmountError(null);
+                        }}
                         placeholder="0.001"
                       />
                     </div>
@@ -1063,6 +1444,16 @@ export const App: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Dynamic Deposit, Cumulative Amount, and Remaining Balance Display */}
+                  <VoucherAmountStatusDisplay
+                    channelDepositEth={channelDepositEth}
+                    voucherAmountEth={voucherAmountEth}
+                    remainingBalanceEth={remainingBalanceEth}
+                    isAmountExceedingDeposit={isAmountExceedingDeposit}
+                    voucherAmountError={voucherAmountError}
+                    onChangeAmount={handleChangeAmount}
+                  />
+
                   <div style={{ padding: "10px 12px", backgroundColor: "rgba(245, 158, 11, 0.08)", borderRadius: "8px", border: "1px solid rgba(245, 158, 11, 0.2)", fontSize: "12px", color: "#fbbf24" }}>
                     Signing this voucher authorizes the specified cumulative payment. It does not transfer ETH by itself.
                   </div>
@@ -1071,7 +1462,7 @@ export const App: React.FC = () => {
                     variant="primary"
                     size="lg"
                     onClick={handleSignVoucher}
-                    disabled={isSigningVoucher || !isConnected}
+                    disabled={isSigningVoucher || !isConnected || !isVoucherAmountValid}
                     isLoading={isSigningVoucher}
                     icon={<Send size={16} />}
                   >
@@ -1143,11 +1534,23 @@ export const App: React.FC = () => {
                     </div>
                   )}
 
+                  {signedVoucher && channelDepositWei > BigInt(0) && BigInt(signedVoucher.cumulativeAmount) > channelDepositWei && (
+                    <div style={{ padding: "12px 14px", backgroundColor: "rgba(239, 68, 68, 0.1)", borderRadius: "8px", border: "1px solid rgba(239, 68, 68, 0.3)", color: "var(--status-error)", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <AlertCircle size={16} />
+                      <span>Settlement rejected: voucher amount exceeds the channel deposit.</span>
+                    </div>
+                  )}
+
                   <Button
                     variant="primary"
                     size="lg"
-                    onClick={handleSettleClaim}
-                    disabled={isSettling || !signedVoucher || !isConnected}
+                    onClick={() => handleSettleClaim()}
+                    disabled={
+                      isSettling ||
+                      !signedVoucher ||
+                      !isConnected ||
+                      (channelDepositWei > BigInt(0) && BigInt(signedVoucher.cumulativeAmount) > channelDepositWei)
+                    }
                     isLoading={isSettling}
                     icon={<ShieldCheck size={16} />}
                   >
@@ -1193,6 +1596,15 @@ export const App: React.FC = () => {
                   )}
                 </div>
               </Card>
+            </div>
+
+            {/* Voucher History Section */}
+            <div style={{ marginBottom: "32px" }}>
+              <VoucherHistory
+                vouchers={voucherHistory}
+                onSelectForSettlement={handleSelectForSettlement}
+                selectedChannelId={selectedChannelId}
+              />
             </div>
 
             {/* Section 3: Live Channels Table */}

@@ -14,6 +14,7 @@ import {
   Activity,
   User,
   PowerOff,
+  FileCheck2,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -49,6 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate, onOpenA
     { label: "Dashboard", path: "/dashboard", icon: <Layers size={16} /> },
     { label: "Channels", path: "/dashboard/channels", icon: <CreditCard size={16} /> },
     { label: "Payments", path: "/dashboard/payments", icon: <ArrowRightLeft size={16} /> },
+    { label: "Voucher History", path: "/dashboard/history", icon: <FileCheck2 size={16} /> },
     { label: "Transactions", path: "/dashboard/transactions", icon: <Activity size={16} /> },
   ];
 
