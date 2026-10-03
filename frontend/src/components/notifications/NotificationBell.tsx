@@ -45,21 +45,21 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
     switch (type) {
       case "CHANNEL_CREATED":
       case "channel":
-        return <CreditCard size={15} color="var(--brand-primary)" />;
+        return <CreditCard size={15} color="#6B4F43" />;
       case "VOUCHER_SIGNED":
       case "payment":
-        return <FileCheck2 size={15} color="#f59e0b" />;
+        return <FileCheck2 size={15} color="#B98235" />;
       case "SETTLEMENT_SUBMITTED":
-        return <ArrowRightLeft size={15} color="#0ea5e9" />;
+        return <ArrowRightLeft size={15} color="#6B4F43" />;
       case "SETTLEMENT_CONFIRMED":
       case "settlement":
-        return <CheckCircle2 size={15} color="var(--status-success)" />;
+        return <CheckCircle2 size={15} color="#3F7D5A" />;
       case "PAYMENT_RECEIVED":
-        return <Coins size={15} color="#a855f7" />;
+        return <Coins size={15} color="#3F7D5A" />;
       case "SETTLEMENT_FAILED":
-        return <AlertCircle size={15} color="var(--status-error)" />;
+        return <AlertCircle size={15} color="#B94A48" />;
       default:
-        return <Bell size={15} color="var(--text-secondary)" />;
+        return <Bell size={15} color="#6F655E" />;
     }
   };
 
@@ -70,10 +70,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
         onClick={() => setIsOpen(!isOpen)}
         style={{
           position: "relative",
-          padding: "8px 10px",
-          borderRadius: "8px",
-          backgroundColor: isOpen ? "var(--bg-hover)" : "var(--bg-tertiary)",
-          color: "var(--text-primary)",
+          padding: "7px 9px",
+          borderRadius: "9px",
+          backgroundColor: isOpen ? "#F1E9DF" : "#F7F3EC",
+          color: "#3A2923",
           display: "flex",
           alignItems: "center",
           gap: "6px",
@@ -84,14 +84,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
         aria-label="Notifications"
         title="View Notifications"
       >
-        <Bell size={18} />
+        <Bell size={18} color="#6B4F43" />
         {unreadCount > 0 && (
           <span
             style={{
               padding: "1px 6px",
               borderRadius: "9999px",
-              backgroundColor: "var(--status-error)",
-              color: "#ffffff",
+              backgroundColor: "#C49A5A",
+              color: "#211C19",
               fontSize: "11px",
               fontWeight: 700,
               lineHeight: 1.3,
@@ -111,10 +111,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
             top: "46px",
             width: "360px",
             maxWidth: "90vw",
-            backgroundColor: "var(--bg-secondary)",
+            backgroundColor: "#FFFFFF",
             border: "1px solid var(--border-medium)",
-            borderRadius: "14px",
-            boxShadow: "var(--shadow-xl)",
+            borderRadius: "16px",
+            boxShadow: "0 8px 32px rgba(58,41,35,0.10)",
             zIndex: 100,
             overflow: "hidden",
             display: "flex",
@@ -132,7 +132,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>
+              <span style={{ fontSize: "14px", fontWeight: 700, color: "#211C19" }}>
                 Notifications
               </span>
               {unreadCount > 0 && (
@@ -140,10 +140,11 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
                   style={{
                     fontSize: "11px",
                     fontWeight: 600,
-                    padding: "2px 6px",
-                    borderRadius: "6px",
-                    backgroundColor: "rgba(37, 99, 235, 0.15)",
-                    color: "var(--brand-secondary)",
+                    padding: "2px 7px",
+                    borderRadius: "9999px",
+                    backgroundColor: "rgba(196,154,90,0.12)",
+                    color: "#C49A5A",
+                    border: "1px solid rgba(196,154,90,0.25)",
                   }}
                 >
                   {unreadCount} unread
@@ -191,7 +192,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
                     style={{
                       padding: "12px 16px",
                       borderBottom: "1px solid var(--border-subtle)",
-                      backgroundColor: isUnread ? "rgba(37, 99, 235, 0.05)" : "transparent",
+                      backgroundColor: isUnread ? "#FBF7F1" : "transparent",
                       cursor: "pointer",
                       transition: "background-color var(--transition-fast)",
                       display: "flex",
@@ -231,10 +232,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
                         {isUnread && (
                           <span
                             style={{
-                              width: "6px",
-                              height: "6px",
+                              width: "7px",
+                              height: "7px",
                               borderRadius: "50%",
-                              backgroundColor: "var(--brand-primary)",
+                              backgroundColor: "#C49A5A",
                               flexShrink: 0,
                             }}
                           />
@@ -292,7 +293,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
           <div
             style={{
               padding: "10px 16px",
-              backgroundColor: "var(--bg-tertiary)",
+              backgroundColor: "#FAF6F1",
               borderTop: "1px solid var(--border-subtle)",
               textAlign: "center",
             }}
@@ -305,7 +306,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
               style={{
                 fontSize: "12px",
                 fontWeight: 600,
-                color: "var(--brand-secondary)",
+                color: "#6B4F43",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "4px",

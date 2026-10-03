@@ -8,10 +8,11 @@ describe("LandingPage", () => {
     const onNavigate = vi.fn();
     render(<LandingPage onNavigate={onNavigate} />);
 
-    expect(screen.getByText("Micropayments, Simplified on Ethereum")).toBeDefined();
+    expect(screen.getByText("Move Money.")).toBeDefined();
+    expect(screen.getByText("Without Borders.")).toBeDefined();
     expect(
       screen.getByText(
-        "Send and settle small payments through secure blockchain payment channels without putting every individual payment directly on-chain."
+        "Send, receive, and manage digital payments securely on the blockchain with fast settlement, transparent transactions, and complete control over your funds."
       )
     ).toBeDefined();
   });
@@ -30,34 +31,36 @@ describe("LandingPage", () => {
     const onNavigate = vi.fn();
     render(<LandingPage onNavigate={onNavigate} />);
 
-    expect(screen.getByText("Connect Wallet")).toBeDefined();
-    expect(screen.getByText("Open Payment Channel")).toBeDefined();
-    expect(screen.getByText("Create Payment Vouchers")).toBeDefined();
-    expect(screen.getByText("Settle Claim")).toBeDefined();
-    expect(screen.getByText("Important: Signing a voucher does not transfer funds.")).toBeDefined();
-    expect(screen.getByText("Funds are transferred only after blockchain settlement.")).toBeDefined();
+    expect(screen.getByText("A simpler way to move value")).toBeDefined();
+    expect(screen.getAllByText("Connect Wallet").length).toBeGreaterThan(0);
+    expect(screen.getByText("Make a Payment")).toBeDefined();
+    expect(screen.getByText("Confirm on Blockchain")).toBeDefined();
+    expect(screen.getByText("Track in Real-Time")).toBeDefined();
   });
 
-  it("renders Why Payment Channels section", () => {
+  it("renders 4 core feature cards", () => {
     const onNavigate = vi.fn();
     render(<LandingPage onNavigate={onNavigate} />);
 
-    expect(screen.getByText("Why Payment Channels?")).toBeDefined();
-    expect(screen.getByText("Efficient Micropayments")).toBeDefined();
-    expect(screen.getByText("Reduced On-Chain Transactions")).toBeDefined();
-    expect(screen.getByText("Non-Custodial Architecture")).toBeDefined();
+    expect(screen.getByText("Secure by Design")).toBeDefined();
+    expect(screen.getByText("Low Transaction Fees")).toBeDefined();
+    expect(screen.getByText("Instant Settlements")).toBeDefined();
+    expect(screen.getByText("AI Powered Insights")).toBeDefined();
   });
 
-  it("renders 6 features and security section", () => {
+  it("renders security section and verifiable security cards", () => {
     const onNavigate = vi.fn();
     render(<LandingPage onNavigate={onNavigate} />);
 
-    expect(screen.getByText("1. Payment Channels")).toBeDefined();
-    expect(screen.getByText("2. EIP-712 Vouchers")).toBeDefined();
-    expect(screen.getByText("3. Smart Contract Escrow")).toBeDefined();
-    expect(screen.getByText("4. Direct Settlement")).toBeDefined();
-    expect(screen.getByText("5. Non-Custodial Payments")).toBeDefined();
-    expect(screen.getByText("6. Ethereum Sepolia Support")).toBeDefined();
-    expect(screen.getByText("Built with Verified Web3 Security")).toBeDefined();
+    expect(screen.getByText("You Can Trust")).toBeDefined();
+    expect(screen.getByText("Smart Contracts")).toBeDefined();
+    expect(screen.getByText("Wallet Security")).toBeDefined();
+    expect(screen.getByText("Transparent Records")).toBeDefined();
+    expect(screen.getByText("Decentralized")).toBeDefined();
+
+    // Verify "Learn More" expands verified invariants
+    const learnMoreBtn = screen.getByText("Learn More");
+    fireEvent.click(learnMoreBtn);
+    expect(screen.getByText("Verified Invariants:")).toBeDefined();
   });
 });

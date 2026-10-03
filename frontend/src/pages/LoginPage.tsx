@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { Mail, Lock, AlertCircle } from "lucide-react";
+import { Mail, Lock, AlertCircle, ShieldCheck } from "lucide-react";
 
 interface LoginPageProps {
   onNavigate: (path: string) => void;
@@ -23,7 +23,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
       setFormError("Please enter your email address.");
       return;
     }
-
     if (!password) {
       setFormError("Please enter your password.");
       return;
@@ -31,9 +30,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
 
     try {
       await login(trimmedEmail, password);
-      // Immediately clear local password state
       setPassword("");
-      // Redirect to main dashboard
       onNavigate("/dashboard");
     } catch (err: any) {
       setFormError(err.message || "Invalid credentials. Please verify your email and password.");
@@ -44,7 +41,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "var(--bg-primary)",
+        backgroundColor: "#F7F3EC",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -61,24 +58,31 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
           gap: "10px",
           marginBottom: "32px",
           cursor: "pointer",
+          userSelect: "none",
         }}
       >
         <div
           style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "10px",
-            backgroundColor: "var(--brand-primary)",
+            width: "38px",
+            height: "38px",
+            borderRadius: "11px",
+            backgroundColor: "#3A2923",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             color: "#ffffff",
+            boxShadow: "0 2px 10px rgba(58,41,35,0.2)",
           }}
         >
           <ZapIcon />
         </div>
-        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)" }}>
-          MicroPay
+        <div>
+          <div style={{ fontSize: "20px", fontWeight: 700, color: "#3A2923", letterSpacing: "-0.02em" }}>
+            MicroPay
+          </div>
+          <div style={{ fontSize: "11px", color: "#958B83", marginTop: "-2px" }}>
+            Ethereum State Channels
+          </div>
         </div>
       </div>
 
@@ -87,53 +91,63 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         style={{
           width: "100%",
           maxWidth: "420px",
-          backgroundColor: "var(--bg-secondary)",
-          border: "1px solid var(--border-medium)",
-          borderRadius: "16px",
+          backgroundColor: "#FFFFFF",
+          border: "1px solid #E5DED5",
+          borderRadius: "18px",
           padding: "36px 32px",
-          boxShadow: "var(--shadow-xl)",
+          boxShadow: "0 8px 32px rgba(58,41,35,0.08)",
         }}
       >
+        {/* Header */}
         <div style={{ textAlign: "center", marginBottom: "28px" }}>
+          <div
+            style={{
+              width: "48px",
+              height: "48px",
+              borderRadius: "12px",
+              backgroundColor: "rgba(58,41,35,0.06)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 14px",
+              color: "#3A2923",
+            }}
+          >
+            <ShieldCheck size={24} />
+          </div>
           <h1
             style={{
               fontSize: "24px",
-              fontWeight: 800,
+              fontWeight: 700,
               letterSpacing: "-0.02em",
-              color: "var(--text-primary)",
+              color: "#211C19",
               marginBottom: "8px",
             }}
           >
             Welcome back
           </h1>
-          <p style={{ fontSize: "14px", color: "var(--text-secondary)" }}>
+          <p style={{ fontSize: "14px", color: "#6F655E" }}>
             Log in to manage your state channels and micropayments.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-          {/* Error Message */}
+          {/* Error */}
           {(formError || authError) && (
             <div
               className="alert alert-error"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                fontSize: "13px",
-                padding: "10px 14px",
-              }}
+              style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", padding: "10px 14px", marginBottom: 0 }}
             >
               <AlertCircle size={16} style={{ flexShrink: 0 }} />
               <span>{formError || authError}</span>
             </div>
           )}
 
-          {/* Email Field */}
+          {/* Email */}
           <div>
             <label
               htmlFor="login-email"
-              style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px" }}
+              style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#6F655E", marginBottom: "6px" }}
             >
               Email
             </label>
@@ -145,21 +159,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
-                style={{ paddingLeft: "38px" }}
+                style={{ paddingLeft: "38px", borderRadius: "12px" }}
                 autoComplete="email"
               />
               <Mail
-                size={16}
-                style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}
+                size={15}
+                style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#958B83" }}
               />
             </div>
           </div>
 
-          {/* Password Field */}
+          {/* Password */}
           <div>
             <label
               htmlFor="login-password"
-              style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px" }}
+              style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#6F655E", marginBottom: "6px" }}
             >
               Password
             </label>
@@ -171,49 +185,43 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
-                style={{ paddingLeft: "38px" }}
+                style={{ paddingLeft: "38px", borderRadius: "12px" }}
                 autoComplete="current-password"
               />
               <Lock
-                size={16}
-                style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}
+                size={15}
+                style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#958B83" }}
               />
             </div>
           </div>
 
-          {/* Submit Button */}
+          {/* Submit */}
           <button
             type="submit"
             disabled={isLoading}
             className="btn btn-primary"
-            style={{
-              width: "100%",
-              padding: "12px",
-              fontSize: "15px",
-              fontWeight: 600,
-              marginTop: "8px",
-            }}
+            style={{ width: "100%", padding: "13px", fontSize: "15px", fontWeight: 600, marginTop: "6px", borderRadius: "12px" }}
           >
-            {isLoading ? "Logging in..." : "Login"}
+            {isLoading ? "Logging in…" : "Login"}
           </button>
         </form>
 
-        {/* Footer Link to Sign Up */}
-        <div style={{ marginTop: "24px", textAlign: "center", fontSize: "13px", color: "var(--text-secondary)" }}>
+        {/* Footer link */}
+        <div style={{ marginTop: "24px", textAlign: "center", fontSize: "13px", color: "#6F655E" }}>
           Don't have an account?{" "}
           <button
             onClick={() => onNavigate("/auth/signup")}
-            style={{
-              color: "var(--brand-secondary)",
-              fontWeight: 600,
-              background: "none",
-              padding: 0,
-            }}
+            style={{ color: "#6B4F43", fontWeight: 700, background: "none", padding: 0, cursor: "pointer" }}
           >
             Create one
           </button>
         </div>
       </div>
+
+      {/* Trust footer */}
+      <p style={{ marginTop: "20px", fontSize: "12px", color: "#958B83", textAlign: "center" }}>
+        Non-custodial · Ethereum Sepolia · EIP-712 Secured
+      </p>
     </div>
   );
 };

@@ -141,12 +141,12 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ onNavigate
     switch (type) {
       case "CHANNEL_CREATED":
       case "channel":
-        return <span className="badge badge-primary">Channel Created</span>;
+        return <span className="badge badge-info">Channel Created</span>;
       case "VOUCHER_SIGNED":
       case "payment":
         return <span className="badge badge-warning">Voucher Signed</span>;
       case "SETTLEMENT_SUBMITTED":
-        return <span className="badge badge-neutral" style={{ color: "#0ea5e9" }}>Settlement Submitted</span>;
+        return <span className="badge badge-neutral">Settlement Submitted</span>;
       case "SETTLEMENT_CONFIRMED":
       case "settlement":
         return <span className="badge badge-success">Settlement Confirmed</span>;
@@ -155,16 +155,16 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ onNavigate
           <span
             className="badge"
             style={{
-              backgroundColor: "rgba(168, 85, 247, 0.15)",
-              color: "#c084fc",
-              border: "1px solid rgba(168, 85, 247, 0.3)",
+              backgroundColor: "rgba(63,125,90,0.08)",
+              color: "#3F7D5A",
+              border: "1px solid rgba(63,125,90,0.2)",
             }}
           >
             Payment Received
           </span>
         );
       case "SETTLEMENT_FAILED":
-        return <span className="badge badge-danger">Settlement Failed</span>;
+        return <span className="badge badge-error">Settlement Failed</span>;
       default:
         return <span className="badge badge-neutral">System</span>;
     }
@@ -174,21 +174,21 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ onNavigate
     switch (type) {
       case "CHANNEL_CREATED":
       case "channel":
-        return <CreditCard size={18} color="var(--brand-primary)" />;
+        return <CreditCard size={18} color="#6B4F43" />;
       case "VOUCHER_SIGNED":
       case "payment":
-        return <FileCheck2 size={18} color="#f59e0b" />;
+        return <FileCheck2 size={18} color="#B98235" />;
       case "SETTLEMENT_SUBMITTED":
-        return <ArrowRightLeft size={18} color="#0ea5e9" />;
+        return <ArrowRightLeft size={18} color="#6B4F43" />;
       case "SETTLEMENT_CONFIRMED":
       case "settlement":
-        return <CheckCircle2 size={18} color="var(--status-success)" />;
+        return <CheckCircle2 size={18} color="#3F7D5A" />;
       case "PAYMENT_RECEIVED":
-        return <Coins size={18} color="#c084fc" />;
+        return <Coins size={18} color="#3F7D5A" />;
       case "SETTLEMENT_FAILED":
-        return <AlertCircle size={18} color="var(--status-error)" />;
+        return <AlertCircle size={18} color="#B94A48" />;
       default:
-        return <Bell size={18} color="var(--text-secondary)" />;
+        return <Bell size={18} color="#6F655E" />;
     }
   };
 
@@ -355,10 +355,10 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ onNavigate
                 key={notif.id}
                 style={{
                   padding: "20px",
-                  borderRadius: "12px",
-                  backgroundColor: isUnread ? "rgba(37, 99, 235, 0.04)" : "var(--bg-secondary)",
-                  border: `1px solid ${isUnread ? "rgba(37, 99, 235, 0.3)" : "var(--border-subtle)"}`,
-                  boxShadow: "var(--shadow-sm)",
+                  borderRadius: "16px",
+                  backgroundColor: isUnread ? "#FBF7F1" : "#FFFFFF",
+                  border: `1px solid ${isUnread ? "rgba(196,154,90,0.3)" : "#E5DED5"}`,
+                  boxShadow: "0 2px 8px rgba(58,41,35,0.04)",
                   display: "flex",
                   gap: "16px",
                   alignItems: "flex-start",
@@ -541,14 +541,15 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ onNavigate
                         rel="noopener noreferrer"
                         style={{
                           padding: "4px 10px",
-                          borderRadius: "6px",
-                          backgroundColor: "rgba(37, 99, 235, 0.1)",
-                          border: "1px solid rgba(37, 99, 235, 0.25)",
-                          color: "var(--brand-secondary)",
+                          borderRadius: "8px",
+                          backgroundColor: "rgba(107,79,67,0.08)",
+                          border: "1px solid rgba(107,79,67,0.2)",
+                          color: "#6B4F43",
                           display: "flex",
                           alignItems: "center",
                           gap: "6px",
                           textDecoration: "none",
+                          fontWeight: 600,
                         }}
                         title="View on Sepolia Etherscan"
                       >

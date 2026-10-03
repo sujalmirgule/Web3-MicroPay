@@ -58,7 +58,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onNavigate }) => {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "var(--bg-primary)",
+        backgroundColor: "#F7F3EC",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -75,24 +75,29 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onNavigate }) => {
           gap: "10px",
           marginBottom: "32px",
           cursor: "pointer",
+          userSelect: "none",
         }}
       >
         <div
           style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "10px",
-            backgroundColor: "var(--brand-primary)",
+            width: "38px",
+            height: "38px",
+            borderRadius: "11px",
+            backgroundColor: "#3A2923",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             color: "#ffffff",
+            boxShadow: "0 2px 10px rgba(58,41,35,0.2)",
           }}
         >
           <ZapIcon />
         </div>
-        <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)" }}>
-          MicroPay
+        <div>
+          <div style={{ fontSize: "20px", fontWeight: 700, color: "#3A2923", letterSpacing: "-0.02em" }}>
+            MicroPay
+          </div>
+          <div style={{ fontSize: "11px", color: "#958B83", marginTop: "-2px" }}>Ethereum State Channels</div>
         </div>
       </div>
 
@@ -101,27 +106,27 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onNavigate }) => {
         style={{
           width: "100%",
           maxWidth: "440px",
-          backgroundColor: "var(--bg-secondary)",
-          border: "1px solid var(--border-medium)",
-          borderRadius: "16px",
+          backgroundColor: "#FFFFFF",
+          border: "1px solid #E5DED5",
+          borderRadius: "18px",
           padding: "36px 32px",
-          boxShadow: "var(--shadow-xl)",
+          boxShadow: "0 8px 32px rgba(58,41,35,0.08)",
         }}
       >
         <div style={{ textAlign: "center", marginBottom: "28px" }}>
           <h1
             style={{
               fontSize: "24px",
-              fontWeight: 800,
+              fontWeight: 700,
               letterSpacing: "-0.02em",
-              color: "var(--text-primary)",
+              color: "#211C19",
               marginBottom: "8px",
             }}
           >
-            Create your MicroPay account
+            Create your account
           </h1>
-          <p style={{ fontSize: "14px", color: "var(--text-secondary)" }}>
-            Create an account to manage your payment activity.
+          <p style={{ fontSize: "14px", color: "#6F655E" }}>
+            Manage your state channels and micropayments.
           </p>
         </div>
 
@@ -131,16 +136,16 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onNavigate }) => {
             style={{
               padding: "24px",
               borderRadius: "12px",
-              backgroundColor: "rgba(16, 185, 129, 0.12)",
-              border: "1px solid rgba(16, 185, 129, 0.3)",
+              backgroundColor: "rgba(63,125,90,0.08)",
+              border: "1px solid rgba(63,125,90,0.2)",
               textAlign: "center",
             }}
           >
-            <CheckCircle2 size={40} color="var(--status-success)" style={{ margin: "0 auto 12px" }} />
-            <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--status-success)", marginBottom: "6px" }}>
+            <CheckCircle2 size={40} color="#3F7D5A" style={{ margin: "0 auto 12px" }} />
+            <h3 style={{ fontSize: "17px", fontWeight: 700, color: "#3F7D5A", marginBottom: "6px" }}>
               Account created successfully!
             </h3>
-            <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
+            <p style={{ fontSize: "13px", color: "#6F655E" }}>
               Redirecting you to Login...
             </p>
           </div>
@@ -156,6 +161,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onNavigate }) => {
                   gap: "10px",
                   fontSize: "13px",
                   padding: "10px 14px",
+                  marginBottom: 0,
                 }}
               >
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
@@ -167,7 +173,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onNavigate }) => {
             <div>
               <label
                 htmlFor="signup-name"
-                style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px" }}
+                style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#6F655E", marginBottom: "6px" }}
               >
                 Full Name
               </label>
@@ -179,12 +185,12 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onNavigate }) => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   disabled={isLoading}
-                  style={{ paddingLeft: "38px" }}
+                  style={{ paddingLeft: "38px", borderRadius: "12px" }}
                   autoComplete="name"
                 />
                 <User
-                  size={16}
-                  style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}
+                  size={15}
+                  style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#958B83" }}
                 />
               </div>
             </div>
@@ -193,7 +199,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onNavigate }) => {
             <div>
               <label
                 htmlFor="signup-email"
-                style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px" }}
+                style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#6F655E", marginBottom: "6px" }}
               >
                 Email
               </label>
@@ -205,12 +211,12 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onNavigate }) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
-                  style={{ paddingLeft: "38px" }}
+                  style={{ paddingLeft: "38px", borderRadius: "12px" }}
                   autoComplete="email"
                 />
                 <Mail
-                  size={16}
-                  style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}
+                  size={15}
+                  style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#958B83" }}
                 />
               </div>
             </div>
@@ -219,7 +225,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onNavigate }) => {
             <div>
               <label
                 htmlFor="signup-password"
-                style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px" }}
+                style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#6F655E", marginBottom: "6px" }}
               >
                 Password
               </label>
@@ -231,12 +237,12 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onNavigate }) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
-                  style={{ paddingLeft: "38px" }}
+                  style={{ paddingLeft: "38px", borderRadius: "12px" }}
                   autoComplete="new-password"
                 />
                 <Lock
-                  size={16}
-                  style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}
+                  size={15}
+                  style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#958B83" }}
                 />
               </div>
             </div>
@@ -248,27 +254,29 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onNavigate }) => {
               className="btn btn-primary"
               style={{
                 width: "100%",
-                padding: "12px",
+                padding: "13px",
                 fontSize: "15px",
                 fontWeight: 600,
-                marginTop: "8px",
+                marginTop: "6px",
+                borderRadius: "12px",
               }}
             >
-              {isLoading ? "Creating Account..." : "Create Account"}
+              {isLoading ? "Creating Account…" : "Create Account"}
             </button>
           </form>
         )}
 
         {/* Footer Link to Login */}
-        <div style={{ marginTop: "24px", textAlign: "center", fontSize: "13px", color: "var(--text-secondary)" }}>
+        <div style={{ marginTop: "24px", textAlign: "center", fontSize: "13px", color: "#6F655E" }}>
           Already have an account?{" "}
           <button
             onClick={() => onNavigate("/auth/login")}
             style={{
-              color: "var(--brand-secondary)",
-              fontWeight: 600,
+              color: "#6B4F43",
+              fontWeight: 700,
               background: "none",
               padding: 0,
+              cursor: "pointer",
             }}
           >
             Login

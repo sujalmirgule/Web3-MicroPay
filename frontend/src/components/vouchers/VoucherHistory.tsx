@@ -81,18 +81,18 @@ export const VoucherHistory: React.FC<VoucherHistoryProps> = ({
           <span
             className="badge"
             style={{
-              backgroundColor: "rgba(14, 165, 233, 0.15)",
-              color: "#38bdf8",
-              border: "1px solid rgba(14, 165, 233, 0.3)",
+              backgroundColor: "rgba(107,79,67,0.1)",
+              color: "#6B4F43",
+              border: "1px solid rgba(107,79,67,0.25)",
             }}
           >
-            SETTLEMENT_SUBMITTED
+            SUBMITTED
           </span>
         );
       case "SETTLED":
         return <span className="badge badge-success">SETTLED</span>;
       case "FAILED":
-        return <span className="badge badge-danger">FAILED</span>;
+        return <span className="badge badge-error">FAILED</span>;
       default:
         return <span className="badge badge-neutral">{status}</span>;
     }
@@ -207,11 +207,12 @@ export const VoucherHistory: React.FC<VoucherHistoryProps> = ({
               <div
                 key={voucher.id}
                 style={{
-                  backgroundColor: "var(--bg-secondary)",
-                  border: `1px solid ${voucher.status === "SETTLED" ? "rgba(16, 185, 129, 0.25)" : "var(--border-subtle)"}`,
-                  borderRadius: "12px",
+                  backgroundColor: "#FFFFFF",
+                  border: `1px solid ${voucher.status === "SETTLED" ? "rgba(63,125,90,0.25)" : "#E5DED5"}`,
+                  borderRadius: "16px",
                   padding: "16px 18px",
                   transition: "all var(--transition-fast)",
+                  boxShadow: "0 2px 8px rgba(58,41,35,0.04)",
                 }}
               >
                 {/* Top Card Row */}
@@ -227,12 +228,12 @@ export const VoucherHistory: React.FC<VoucherHistoryProps> = ({
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <div
                       style={{
-                        padding: "6px 10px",
-                        borderRadius: "8px",
-                        backgroundColor: "var(--bg-tertiary)",
+                        padding: "5px 10px",
+                        borderRadius: "9px",
+                        backgroundColor: "#F1E9DF",
                         fontSize: "13px",
                         fontWeight: 700,
-                        color: "var(--brand-primary)",
+                        color: "#3A2923",
                       }}
                     >
                       Voucher #{voucher.nonce}
@@ -308,8 +309,9 @@ export const VoucherHistory: React.FC<VoucherHistoryProps> = ({
                     gap: "12px",
                     marginTop: "12px",
                     padding: "10px 14px",
-                    borderRadius: "8px",
-                    backgroundColor: "var(--bg-tertiary)",
+                    borderRadius: "10px",
+                    backgroundColor: "#FAF6F1",
+                    border: "1px solid #EEE8E1",
                   }}
                 >
                   <div>
@@ -355,9 +357,9 @@ export const VoucherHistory: React.FC<VoucherHistoryProps> = ({
                     style={{
                       marginTop: "10px",
                       padding: "8px 12px",
-                      borderRadius: "6px",
-                      backgroundColor: "rgba(16, 185, 129, 0.08)",
-                      border: "1px solid rgba(16, 185, 129, 0.25)",
+                      borderRadius: "9px",
+                      backgroundColor: "rgba(63,125,90,0.07)",
+                      border: "1px solid rgba(63,125,90,0.2)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",

@@ -447,7 +447,8 @@ export const App: React.FC = () => {
     }
 
     if (!recipientAddr || recipientAddr === ethers.ZeroAddress) {
-      recipientAddr = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+      showToast("Payment channel recipient address is required.", "error");
+      return;
     }
 
     const cumulativeAmountWei = ethers.parseEther(voucherAmountEth);
@@ -907,10 +908,10 @@ export const App: React.FC = () => {
                               style={{
                                 padding: "6px 12px",
                                 fontSize: "12px",
-                                borderRadius: "6px",
-                                backgroundColor: "rgba(37, 99, 235, 0.1)",
-                                border: "1px solid rgba(37, 99, 235, 0.3)",
-                                color: "var(--brand-primary)",
+                                borderRadius: "8px",
+                                backgroundColor: "#F1E9DF",
+                                border: "1px solid #DED6CE",
+                                color: "#3A2923",
                                 cursor: "pointer",
                               }}
                             >
@@ -1158,7 +1159,7 @@ export const App: React.FC = () => {
                 </Button>
 
                 {settleTxHash && (
-                  <div style={{ padding: "16px", backgroundColor: "rgba(16, 185, 129, 0.08)", borderRadius: "8px", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
+                  <div style={{ padding: "16px", backgroundColor: "rgba(63,125,90,0.07)", borderRadius: "10px", border: "1px solid rgba(63,125,90,0.2)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--status-success)", fontWeight: 700, fontSize: "14px", marginBottom: "8px" }}>
                       <Check size={16} />
                       <span>{settleStatus === "confirmed" ? "Settlement Confirmed" : "Settlement submitted"}</span>
@@ -1396,7 +1397,7 @@ export const App: React.FC = () => {
                   </div>
 
                   {selectedChannelState && (
-                    <div style={{ padding: "12px", backgroundColor: "rgba(37, 99, 235, 0.05)", borderRadius: "8px", border: "1px solid rgba(37, 99, 235, 0.2)", fontSize: "13px" }}>
+                    <div style={{ padding: "12px", backgroundColor: "rgba(58,41,35,0.04)", borderRadius: "10px", border: "1px solid #E5DED5", fontSize: "13px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
                         <span style={{ color: "var(--text-secondary)" }}>Channel Status:</span>
                         <strong style={{ color: selectedChannelState.status === "OPEN" ? "var(--status-success)" : "var(--status-warning)" }}>
@@ -1558,7 +1559,7 @@ export const App: React.FC = () => {
                   </Button>
 
                   {settleTxHash && (
-                    <div style={{ padding: "16px", backgroundColor: "rgba(16, 185, 129, 0.08)", borderRadius: "8px", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
+                    <div style={{ padding: "16px", backgroundColor: "rgba(63,125,90,0.07)", borderRadius: "10px", border: "1px solid rgba(63,125,90,0.2)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--status-success)", fontWeight: 700, fontSize: "14px", marginBottom: "6px" }}>
                         <Check size={16} /> Settlement Transaction Submitted!
                       </div>
@@ -1666,10 +1667,10 @@ export const App: React.FC = () => {
                               style={{
                                 padding: "6px 12px",
                                 fontSize: "12px",
-                                borderRadius: "6px",
-                                backgroundColor: "rgba(37, 99, 235, 0.1)",
-                                border: "1px solid rgba(37, 99, 235, 0.3)",
-                                color: "var(--brand-primary)",
+                                borderRadius: "8px",
+                                backgroundColor: "#F1E9DF",
+                                border: "1px solid #DED6CE",
+                                color: "#3A2923",
                                 cursor: "pointer",
                               }}
                             >

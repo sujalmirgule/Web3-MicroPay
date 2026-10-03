@@ -252,7 +252,22 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 export const useWallet = (): WalletContextType => {
   const context = useContext(WalletContext);
   if (!context) {
-    throw new Error("useWallet must be used within a WalletProvider");
+    return {
+      address: null,
+      chainId: null,
+      balance: "0.0",
+      isConnected: false,
+      isConnecting: false,
+      isWrongNetwork: false,
+      error: null,
+      client: null,
+      signer: null,
+      provider: null,
+      connectWallet: async () => {},
+      disconnectWallet: () => {},
+      switchToSepolia: async () => {},
+      refreshBalance: async () => {},
+    };
   }
   return context;
 };
