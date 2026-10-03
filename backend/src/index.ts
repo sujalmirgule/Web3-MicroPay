@@ -4,6 +4,7 @@ import { connectDatabase, disconnectDatabase } from "./db/prisma.client";
 import { connectRedis, disconnectRedis }        from "./redis/redis.client";
 import { IndexerService }       from "./indexer/indexer.service";
 import { RelayerService }       from "./relayer/relayer.service";
+import { ReconciliationWorker } from "./reconciliation/reconciliation.worker";
 import { NotificationOutboxWorker } from "./notifications/outbox.worker";
 import { ProductionRedisService }   from "./redis/redis.production.service";
 import { getRedisClient }           from "./redis/redis.client";
@@ -30,13 +31,17 @@ async function main(): Promise<void> {
   const outboxWorker = new NotificationOutboxWorker(redisService);
   outboxWorker.start();
 
-  // ── Indexer (WebSocket listener) ─────────────────────────────────────────────
+  // ── Indexer (WebSocket / HTTP listener) ──────────────────────────────────────
   const indexer = new IndexerService();
   await indexer.start();
 
-  // ── Relayer reconciliation cron ───────────────────────────────────────────────
+  // ── Relayer settlement loop ──────────────────────────────────────────────────
   const relayer = new RelayerService();
   relayer.startReconciliationLoop();
+
+  // ── State Reconciliation worker (PostgreSQL vs On-Chain) ──────────────────────
+  const reconciliationWorker = new ReconciliationWorker();
+  reconciliationWorker.start();
 
   // ── Graceful shutdown ─────────────────────────────────────────────────────────
   const shutdown = async (signal: string): Promise<void> => {
@@ -44,6 +49,8 @@ async function main(): Promise<void> {
 
     outboxWorker.stop();
     await indexer.stop();
+    relayer.stopReconciliationLoop();
+    reconciliationWorker.stop();
 
     server.close(async () => {
       await disconnectDatabase();

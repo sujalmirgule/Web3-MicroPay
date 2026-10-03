@@ -2,11 +2,9 @@ import { ethers, BrowserProvider, Contract, Signer } from "ethers";
 import {
   getMicroPayDomain,
   MICRO_VOUCHER_TYPES,
-  MicroVoucher,
-  ChannelDTO,
-  ChannelStatus,
   MICRO_PAY_VAULT_ABI,
 } from "@web3-micropay/shared";
+import type { MicroVoucher, ChannelDTO, ChannelStatus } from "@web3-micropay/shared";
 
 export interface TransactionStatus {
   hash: string;
@@ -24,11 +22,32 @@ export class Web3MicroPayClient {
   constructor(
     provider: BrowserProvider | ethers.JsonRpcProvider,
     vaultAddress: string,
-    chainId: bigint
+    chainId: bigint,
+    signer?: Signer | null
   ) {
     this.provider = provider;
     this.vaultAddress = vaultAddress;
     this.chainId = chainId;
+    if (signer) {
+      this.signer = signer;
+    }
+  }
+
+  public setSigner(signer: Signer | null): void {
+    this.signer = signer;
+  }
+
+  /**
+   * Ensures a Signer is available for write operations.
+   * If not already set, attempts to obtain one from the BrowserProvider.
+   */
+  public async ensureSigner(): Promise<Signer> {
+    if (this.signer) return this.signer;
+    if (this.provider instanceof BrowserProvider) {
+      this.signer = await this.provider.getSigner();
+      return this.signer;
+    }
+    throw new Error("Cannot execute write transaction: no Signer connected to wallet provider");
   }
 
   /**
@@ -55,6 +74,21 @@ export class Web3MicroPayClient {
   public getSigner(): Signer {
     if (!this.signer) throw new Error("Wallet not connected");
     return this.signer;
+  }
+
+  /**
+   * Returns a contract instance backed by a Signer for write transactions.
+   */
+  public async getWriteContract(): Promise<Contract> {
+    const signer = await this.ensureSigner();
+    return new Contract(this.vaultAddress, MICRO_PAY_VAULT_ABI, signer);
+  }
+
+  /**
+   * Returns a contract instance backed by the Provider for read-only calls.
+   */
+  public getReadContract(): Contract {
+    return new Contract(this.vaultAddress, MICRO_PAY_VAULT_ABI, this.provider);
   }
 
   public getVaultContract(): Contract {
@@ -103,7 +137,8 @@ export class Web3MicroPayClient {
       validUntil: voucher.validUntil,
     };
 
-    const signature = (await this.signer.signTypedData(domain, types, value)) as `0x${string}`;
+    const signer = await this.ensureSigner();
+    const signature = (await signer.signTypedData(domain, types, value)) as `0x${string}`;
 
     return {
       ...voucher,
@@ -121,7 +156,7 @@ export class Web3MicroPayClient {
     expirationTimestamp: number,
     disputePeriodSeconds: number = 86400
   ): Promise<ethers.ContractTransactionResponse> {
-    const vault = this.getVaultContract();
+    const vault = await this.getWriteContract();
     const isNative = tokenAddress === ethers.ZeroAddress;
 
     if (isNative) {
@@ -145,6 +180,88 @@ export class Web3MicroPayClient {
   }
 
   /**
+   * Top up an existing channel with additional collateral
+   */
+  public async topUpChannel(
+    channelId: string,
+    tokenAddress: string,
+    additionalAmount: bigint
+  ): Promise<ethers.ContractTransactionResponse> {
+    const vault = await this.getWriteContract();
+    const isNative = tokenAddress === ethers.ZeroAddress;
+
+    if (isNative) {
+      return vault.topUpChannel(channelId, additionalAmount, { value: additionalAmount });
+    } else {
+      return vault.topUpChannel(channelId, additionalAmount);
+    }
+  }
+
+  /**
+   * Initiate unilateral dispute resolution window
+   */
+  public async initiateChannelClose(channelId: string): Promise<ethers.ContractTransactionResponse> {
+    const vault = await this.getWriteContract();
+    return vault.initiateChannelClose(channelId);
+  }
+
+  /**
+   * Finalize channel closure after dispute period or expiration elapses
+   */
+  public async finalizeChannelClose(channelId: string): Promise<ethers.ContractTransactionResponse> {
+    const vault = await this.getWriteContract();
+    return vault.finalizeChannelClose(channelId);
+  }
+
+  /**
+   * Settle highest cumulative voucher directly on-chain
+   */
+  public async settleClaim(
+    channelId: string,
+    cumulativeAmount: bigint,
+    nonce: number,
+    validUntil: number,
+    signature: string
+  ): Promise<ethers.ContractTransactionResponse> {
+    const vault = await this.getWriteContract();
+    return vault.settleClaim(channelId, cumulativeAmount, nonce, validUntil, signature);
+  }
+
+  /**
+   * Cooperatively close channel with mutual signatures
+   */
+  public async closeChannelCooperative(
+    channelId: string,
+    finalAmount: bigint,
+    payerSignature: string,
+    recipientSignature: string
+  ): Promise<ethers.ContractTransactionResponse> {
+    const vault = await this.getWriteContract();
+    return vault.closeChannelCooperative(channelId, finalAmount, payerSignature, recipientSignature);
+  }
+
+  /**
+   * Sign a cooperative close agreement
+   */
+  public async signCooperativeClose(channelId: string, finalAmount: bigint): Promise<string> {
+    const signer = await this.ensureSigner();
+
+    const domain = getMicroPayDomain(this.chainId, this.vaultAddress);
+    const types = {
+      CooperativeClose: [
+        { name: "channelId", type: "bytes32" },
+        { name: "finalAmount", type: "uint256" },
+      ],
+    };
+    const value = {
+      channelId,
+      finalAmount,
+    };
+
+    return signer.signTypedData(domain, types, value);
+  }
+
+  /**
    * Monitor a transaction until required confirmations
    */
   public async waitForConfirmation(
@@ -162,3 +279,4 @@ export class Web3MicroPayClient {
     };
   }
 }
+

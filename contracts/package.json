@@ -6,6 +6,8 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+    "deploy:base-sepolia": "hardhat run scripts/deploy.ts --network base_sepolia",
     "clean": "hardhat clean"
   },
   "dependencies": {

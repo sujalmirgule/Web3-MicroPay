@@ -8,29 +8,69 @@ const CONFIRMATION_DEPTH   = 6;
 const BACKFILL_CHUNK_SIZE  = 1000;
 const INDEXER_LAG_WARN     = 5;
 const INDEXER_LAG_CRITICAL = 15;
+const HTTP_POLL_INTERVAL_MS = 6000; // 6s poll interval for HTTP fallback
 
 /**
- * Production Indexer Service — WebSocket blockchain event subscription.
- * Replaces Phase 3 stub with real ethers.js provider integration.
+ * Production Indexer Service — WebSocket & HTTP Fallback blockchain event subscription.
+ * Implements 6-block confirmation depth, deduplication, restart recovery, and automatic fallback.
  */
 export class IndexerService {
-  private provider: ethers.WebSocketProvider | null = null;
+  private provider: ethers.WebSocketProvider | ethers.JsonRpcProvider | null = null;
   private contract: ethers.Contract | null = null;
   private confirmationBuffer = new Map<number, ethers.Log[]>(); // block → pending logs
   private lastIndexedBlock   = 0n;
   private stopRequested      = false;
+  private isWs = false;
+  private httpPollTimer: ReturnType<typeof setInterval> | null = null;
 
   public async start(): Promise<void> {
     const wsUrl      = process.env.BLOCKCHAIN_WS_RPC_URL;
+    const rpcUrl     = process.env.BLOCKCHAIN_RPC_URL;
     const vaultAddr  = process.env.MICROPAY_VAULT_ADDRESS;
 
-    if (!wsUrl || !vaultAddr) {
-      logger.warn("BLOCKCHAIN_WS_RPC_URL or MICROPAY_VAULT_ADDRESS not set — Indexer disabled");
+    if (!vaultAddr) {
+      logger.warn("MICROPAY_VAULT_ADDRESS not set — Indexer disabled");
+      return;
+    }
+
+    if (!wsUrl && !rpcUrl) {
+      logger.warn("Neither BLOCKCHAIN_WS_RPC_URL nor BLOCKCHAIN_RPC_URL set — Indexer disabled");
+      return;
+    }
+
+    // Attempt WebSocket connection first, fallback to HTTP JsonRpcProvider
+    if (wsUrl) {
+      try {
+        const wsProvider = new ethers.WebSocketProvider(wsUrl);
+        // Test connectivity
+        await wsProvider.getBlockNumber();
+        this.provider = wsProvider;
+        this.isWs = true;
+        logger.info({ wsUrl }, "Indexer: connected via WebSocket");
+      } catch (wsErr) {
+        logger.warn({ wsErr }, "Indexer: WebSocket connection failed, falling back to HTTP RPC");
+      }
+    }
+
+    if (!this.provider && rpcUrl) {
+      try {
+        const httpProvider = new ethers.JsonRpcProvider(rpcUrl);
+        await httpProvider.getBlockNumber();
+        this.provider = httpProvider;
+        this.isWs = false;
+        logger.info({ rpcUrl }, "Indexer: connected via HTTP RPC fallback");
+      } catch (httpErr) {
+        logger.error({ httpErr }, "Indexer: HTTP RPC connection also failed");
+        return;
+      }
+    }
+
+    if (!this.provider) {
+      logger.error("Indexer: could not establish any blockchain provider connection");
       return;
     }
 
     try {
-      this.provider = new ethers.WebSocketProvider(wsUrl);
       this.contract = new ethers.Contract(vaultAddr, MICRO_PAY_VAULT_ABI, this.provider);
 
       // Determine backfill start block
@@ -49,16 +89,22 @@ export class IndexerService {
       // Monitor for indexer lag every 30 seconds
       this.startLagMonitor();
 
-      logger.info({ vaultAddress: vaultAddr, lastIndexedBlock: this.lastIndexedBlock.toString() }, "Indexer started");
+      logger.info({ vaultAddress: vaultAddr, lastIndexedBlock: this.lastIndexedBlock.toString() }, "Indexer started successfully");
     } catch (err) {
-      logger.error({ err }, "Indexer failed to start — will retry on next deployment");
+      logger.error({ err }, "Indexer failed to initialize");
     }
   }
 
   public async stop(): Promise<void> {
     this.stopRequested = true;
+    if (this.httpPollTimer) {
+      clearInterval(this.httpPollTimer);
+      this.httpPollTimer = null;
+    }
     if (this.provider) {
-      await this.provider.destroy();
+      if (this.isWs && this.provider instanceof ethers.WebSocketProvider) {
+        await this.provider.destroy();
+      }
       this.provider = null;
     }
     logger.info("Indexer stopped");
@@ -66,13 +112,13 @@ export class IndexerService {
 
   // ─── Backfill ─────────────────────────────────────────────────────────────
 
-  private async backfill(): Promise<void> {
+  public async backfill(): Promise<void> {
     if (!this.provider || !this.contract) return;
 
     const currentHead = await this.provider.getBlockNumber();
     let fromBlock     = Number(this.lastIndexedBlock) + 1;
 
-    if (fromBlock >= currentHead) {
+    if (fromBlock > currentHead) {
       logger.info("Indexer: no backfill needed, already at chain head");
       return;
     }
@@ -81,51 +127,69 @@ export class IndexerService {
 
     while (fromBlock <= currentHead && !this.stopRequested) {
       const toBlock = Math.min(fromBlock + BACKFILL_CHUNK_SIZE - 1, currentHead);
-      const logs    = await this.provider.getLogs({
-        address:   await this.contract.getAddress(),
-        fromBlock,
-        toBlock,
-      });
-
-      for (const log of logs) {
-        await this.processLog(log, true);
-      }
-
+      await this.indexBlockRange(fromBlock, toBlock);
       fromBlock = toBlock + 1;
     }
 
     logger.info({ upToBlock: currentHead }, "Indexer: backfill complete");
   }
 
-  // ─── Real-time subscription ───────────────────────────────────────────────
+  public async indexBlockRange(fromBlock: number, toBlock: number): Promise<void> {
+    if (!this.provider || !this.contract) return;
+
+    const logs = await this.provider.getLogs({
+      address:   await this.contract.getAddress(),
+      fromBlock,
+      toBlock,
+    });
+
+    for (const log of logs) {
+      await this.processLog(log, true);
+    }
+  }
+
+  // ─── Real-time subscription & HTTP Polling ─────────────────────────────────
 
   private subscribeToEvents(): void {
     if (!this.provider || !this.contract) return;
 
-    // Listen to all contract events
-    this.contract.on("*", async (event: any) => {
-      const rawLog = event?.log ?? event;
-      if (rawLog && typeof rawLog.blockNumber === "number") {
-        await this.processLog(rawLog, false);
-      }
-    });
+    if (this.isWs) {
+      // WebSocket event subscription
+      this.contract.on("*", async (event: any) => {
+        const rawLog = event?.log ?? event;
+        if (rawLog && typeof rawLog.blockNumber === "number") {
+          await this.processLog(rawLog, false);
+        }
+      });
 
-    // Track new blocks for confirmation depth enforcement
-    this.provider.on("block", async (blockNumber: number) => {
-      await this.flushConfirmedLogs(blockNumber);
-    });
+      this.provider.on("block", async (blockNumber: number) => {
+        await this.flushConfirmedLogs(blockNumber);
+      });
 
-    logger.info("Indexer: real-time subscriptions active");
+      logger.info("Indexer: WebSocket real-time subscription active");
+    } else {
+      // HTTP Fallback: Periodic polling for new blocks and logs
+      logger.info({ pollIntervalMs: HTTP_POLL_INTERVAL_MS }, "Indexer: HTTP polling loop activated");
+      this.httpPollTimer = setInterval(async () => {
+        if (!this.provider || this.stopRequested) return;
+        try {
+          const currentHead = await this.provider.getBlockNumber();
+          let fromBlock = Number(this.lastIndexedBlock) + 1;
+          if (fromBlock <= currentHead) {
+            await this.indexBlockRange(fromBlock, currentHead);
+          }
+          await this.flushConfirmedLogs(currentHead);
+        } catch (pollErr) {
+          logger.warn({ pollErr }, "Indexer: HTTP polling cycle encountered transient error");
+        }
+      }, HTTP_POLL_INTERVAL_MS);
+    }
   }
 
   // ─── Log processing pipeline ──────────────────────────────────────────────
 
-  private async processLog(log: ethers.Log, immediate: boolean): Promise<void> {
+  public async processLog(log: ethers.Log, immediate: boolean): Promise<void> {
     if (!this.contract) return;
-
-    const confirmationThreshold = immediate
-      ? 0
-      : CONFIRMATION_DEPTH;
 
     if (!immediate) {
       // Queue for confirmation depth check
@@ -152,7 +216,7 @@ export class IndexerService {
     }
   }
 
-  private async persistLog(log: ethers.Log): Promise<void> {
+  public async persistLog(log: ethers.Log): Promise<void> {
     if (!this.contract) return;
 
     try {
@@ -187,7 +251,9 @@ export class IndexerService {
       // Sync channel state based on event
       await this.syncChannelState(eventName, channelId, decoded, log);
 
-      this.lastIndexedBlock = BigInt(log.blockNumber);
+      if (BigInt(log.blockNumber) > this.lastIndexedBlock) {
+        this.lastIndexedBlock = BigInt(log.blockNumber);
+      }
 
       logger.debug({ eventName, channelId, txHash: log.transactionHash, block: log.blockNumber }, "Event indexed");
     } catch (err: any) {
@@ -198,7 +264,7 @@ export class IndexerService {
 
   // ─── Channel state synchronization ────────────────────────────────────────
 
-  private async syncChannelState(
+  public async syncChannelState(
     eventName: string,
     channelId: string,
     args: Record<string, any>,
@@ -223,6 +289,14 @@ export class IndexerService {
         });
         break;
 
+      case "ChannelToppedUp":
+        await prisma.paymentChannel.update({
+          where: { channel_id: channelId },
+          data:  { total_deposit: args.newTotalDeposit?.toString() ?? args.additionalAmount?.toString() ?? "0" },
+        }).catch(() => null);
+        break;
+
+      case "ChannelSettled":
       case "ClaimSettled":
         await prisma.paymentChannel.update({
           where:  { channel_id: channelId },
@@ -253,6 +327,7 @@ export class IndexerService {
 
       case "ChannelCooperativelyClosed":
       case "ChannelForceFinalized":
+      case "ChannelClosed":
         await prisma.paymentChannel.update({
           where:  { channel_id: channelId },
           data:   { status: "CLOSED" },

@@ -100,10 +100,24 @@ export class RelayerService {
     }
   }
 
+  public async processSettlementById(settlementId: string): Promise<void> {
+    this.initProvider();
+    if (!this.provider || !this.wallet || !this.contract) return;
+
+    const settlement = await prisma.settlement.findUnique({
+      where: { id: settlementId },
+      include: { voucher: true, channel: true },
+    });
+
+    if (settlement && settlement.status === "PENDING") {
+      await this.executeSettlement(settlement);
+    }
+  }
+
   private async executeSettlement(settlement: {
     id:        string;
     channel_id: string;
-    voucher:   { nonce: bigint; cumulative_amount: { toString(): string }; signature: string };
+    voucher:   { nonce: bigint; cumulative_amount: { toString(): string }; signature: string; valid_until: bigint };
     channel:   { token_address: string };
   }): Promise<void> {
     if (!this.provider || !this.wallet || !this.contract) return;
@@ -121,13 +135,11 @@ export class RelayerService {
         this.operatorNonce = BigInt(onchainNonce);
       }
 
-      const isEth  = settlement.channel.token_address === "0x" + "0".repeat(40);
-      const method = isEth ? "settleClaim" : "settleClaim"; // same interface, handles both
-
-      const tx = await this.contract[method](
+      const tx = await this.contract.settleClaim(
         settlement.channel_id,
         BigInt(settlement.voucher.cumulative_amount.toString()),
         BigInt(settlement.voucher.nonce.toString()),
+        Number(settlement.voucher.valid_until.toString()),
         settlement.voucher.signature,
         {
           nonce:              Number(this.operatorNonce),
@@ -215,11 +227,11 @@ export class RelayerService {
       const maxPriorityFee = ((feeData.maxPriorityFeePerGas ?? 1_000_000_000n) * GAS_BUMP_FACTOR) / 100n;
 
       try {
-        const isEth = settlement.channel.token_address === "0x" + "0".repeat(40);
-        const tx = await this.contract["settleClaim"](
+        const tx = await this.contract.settleClaim(
           settlement.channel_id,
           BigInt(settlement.voucher.cumulative_amount.toString()),
           BigInt(settlement.voucher.nonce.toString()),
+          Number(settlement.voucher.valid_until.toString()),
           settlement.voucher.signature,
           {
             nonce:                Number(settlement.tx_hash ? 0 : this.operatorNonce), // use same nonce

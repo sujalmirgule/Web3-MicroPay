@@ -58,6 +58,8 @@ pnpm-debug.log*
 # Database & Storage
 *.sqlite
 *.sqlite3
+.api-store.json
+*.api-store.json
 *.db
 dump.rdb
 *.sql.gz

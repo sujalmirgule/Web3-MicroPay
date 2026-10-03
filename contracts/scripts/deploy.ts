@@ -33,12 +33,29 @@ async function main() {
   );
 
 
+  const network = await ethers.provider.getNetwork();
+  const chainId = network.chainId.toString();
+
+  let explorerBase = "";
+  if (chainId === "11155111") explorerBase = "https://sepolia.etherscan.io";
+  else if (chainId === "84532") explorerBase = "https://sepolia.basescan.org";
+  else if (chainId === "421614") explorerBase = "https://sepolia.arbiscan.io";
+  else if (chainId === "80002") explorerBase = "https://amoy.polygonscan.com";
+
+  if (explorerBase) {
+    console.log(`\n=== BLOCK EXPLORER LINKS ===`);
+    console.log(`MicroPayVault: ${explorerBase}/address/${vaultAddress}`);
+    console.log(`MockUSDC:      ${explorerBase}/address/${usdcAddress}`);
+    console.log(`Deployer:      ${explorerBase}/address/${deployer.address}\n`);
+  }
+
   const deploymentMetadata = {
-    chainId: (await ethers.provider.getNetwork()).chainId.toString(),
+    chainId,
     vaultAddress,
     usdcAddress,
     deployer: deployer.address,
     deployedAt: new Date().toISOString(),
+    explorerUrl: explorerBase ? `${explorerBase}/address/${vaultAddress}` : undefined,
   };
 
   fs.writeFileSync(

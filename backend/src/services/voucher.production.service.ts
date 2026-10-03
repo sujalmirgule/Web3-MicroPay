@@ -86,7 +86,7 @@ export class ProductionVoucherService {
 
     // ── Step 8: EIP-712 signature verification ────────────────────────────────
     const chainId = parseInt(process.env.CHAIN_ID ?? "31337");
-    const recoveredSigner = recoverVoucherSigner(voucher, chainId);
+    const recoveredSigner = recoverVoucherSigner(voucher, channel, chainId);
 
     if (recoveredSigner.toLowerCase() !== channel.payer_address.toLowerCase()) {
       throw new AppError(
@@ -181,7 +181,11 @@ function parseVoucherPayload(raw: unknown): ParsedVoucher {
   };
 }
 
-function recoverVoucherSigner(voucher: ParsedVoucher, chainId: number): string {
+function recoverVoucherSigner(
+  voucher: ParsedVoucher,
+  channel: { payer_address: string; recipient_address: string; expiration_timestamp: bigint },
+  chainId: number
+): string {
   const vaultAddress = process.env.MICROPAY_VAULT_ADDRESS;
   if (!vaultAddress) {
     throw new AppError("ERR_CHANNEL_NOT_FOUND", 500, "MICROPAY_VAULT_ADDRESS not configured.");
@@ -191,11 +195,11 @@ function recoverVoucherSigner(voucher: ParsedVoucher, chainId: number): string {
 
   const value = {
     channelId:        voucher.channelId,
-    payer:            "0x0000000000000000000000000000000000000000",
-    recipient:        "0x0000000000000000000000000000000000000000",
+    payer:            ethers.getAddress(channel.payer_address),
+    recipient:        ethers.getAddress(channel.recipient_address),
     cumulativeAmount: BigInt(voucher.cumulativeAmount),
     nonce:            voucher.nonce,
-    validUntil:       0,
+    validUntil:       voucher.validUntil ? Number(voucher.validUntil) : Number(channel.expiration_timestamp),
   };
 
   return ethers.verifyTypedData(domain, MICRO_VOUCHER_TYPES, value, voucher.signature);

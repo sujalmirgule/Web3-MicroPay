@@ -2,14 +2,29 @@
   "name": "@web3-micropay/frontend",
   "version": "0.1.0",
   "description": "Web3 client interface and EIP-712 voucher signing foundation for Web3 MicroPay",
+  "type": "module",
   "scripts": {
-    "build": "tsc"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@web3-micropay/shared": "*",
-    "ethers": "^6.13.1"
+    "ethers": "^6.13.1",
+    "lucide-react": "^1.50.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.5"
+    "@testing-library/react": "^16.3.3",
+    "@types/jsdom": "^30.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.4.5",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
   }
 }
